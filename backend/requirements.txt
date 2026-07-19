@@ -1,0 +1,32 @@
+# SANJEEVANI backend — pinned for Python 3.11
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20          # multipart/form-data (file uploads)
+
+# Agent orchestration + LLM
+langgraph==0.2.60
+langchain==0.3.14
+langchain-openai==0.2.14
+openai==1.59.0
+
+# Databases
+neo4j==5.27.0                     # Neo4j AuraDB driver (bolt+s://)
+qdrant-client==1.12.1             # Qdrant vector store client
+sqlalchemy==2.0.36                # ORM for Neon Postgres
+psycopg2-binary==2.9.10           # Postgres driver (SSL for Neon)
+
+# Config / validation
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# Document processing / ingestion
+docling==2.14.0                   # PDF / OCR / P&ID parsing
+pymupdf==1.25.1                   # fast PDF text/image extraction
+python-docx==1.1.2                # .docx
+openpyxl==3.1.5                   # .xlsx
+pandas==2.2.3                     # tabular normalization
+
+# Voice
+openai-whisper==20240930          # local Whisper transcription (needs ffmpeg)
