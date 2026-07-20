@@ -30,6 +30,10 @@ from app.ingestion.text_extraction import extract_text
 
 logger = logging.getLogger(__name__)
 
+# The plant's real asset tags. Anything outside this set is a false-positive match
+# from a generic manual/regulation and must not become an Equipment node.
+KNOWN_EQUIPMENT = {t.strip() for t in settings.KNOWN_EQUIPMENT.split(",") if t.strip()}
+
 
 class IngestSummary(BaseModel):
     file: str
@@ -110,17 +114,33 @@ def ingest_directory(root: str | Path | None = None, embed: bool = True) -> Dire
 
 
 def _entities_for(content: ExtractedContent) -> ExtractedEntities:
-    """Choose the extraction path by document type."""
+    """Choose the extraction path by document type, then keep only real assets."""
     if content.doc_type == "workorders":
         rows = [row for table in content.tables for row in table]
-        return work_orders_from_table(rows)
-
-    if content.doc_type == "pid":
+        entities = work_orders_from_table(rows)
+    elif content.doc_type == "pid":
         # The drawing's tags are the reliable signal; make an Equipment entity per tag.
-        return ExtractedEntities(equipment=[EquipmentEntity(tag=t) for t in content.equipment_tags])
+        entities = ExtractedEntities(equipment=[EquipmentEntity(tag=t) for t in content.equipment_tags])
+    else:
+        entities = extract_entities(content.text, known_tags=content.equipment_tags)
+        _ensure_literal_tags(entities, content.equipment_tags)
 
-    entities = extract_entities(content.text, known_tags=content.equipment_tags)
-    _ensure_literal_tags(entities, content.equipment_tags)
+    return _keep_known_equipment(entities)
+
+
+def _keep_known_equipment(entities: ExtractedEntities) -> ExtractedEntities:
+    """
+    Drop equipment (and equipment references) that are not in the asset register.
+    Keeps the graph to real plant assets instead of stray tag-like strings.
+    """
+    entities.equipment = [e for e in entities.equipment if e.tag in KNOWN_EQUIPMENT]
+    entities.work_orders = [w for w in entities.work_orders if w.equipment_tag in KNOWN_EQUIPMENT]
+    for i in entities.incidents:
+        if i.equipment_tag not in KNOWN_EQUIPMENT:
+            i.equipment_tag = None
+    for f in entities.failure_modes:
+        if f.equipment_tag not in KNOWN_EQUIPMENT:
+            f.equipment_tag = None
     return entities
 
 

@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     # Guard against embedding an entire 200-page report during a demo seed.
     MAX_CHUNKS_PER_DOC: int = Field(200, description="Cap on chunks embedded per document")
     USE_PID_VISION: bool = Field(True, description="Call the vision model on P&ID drawings")
+    # The fictional plant's asset register. Tag-like strings in generic manuals
+    # and regulations (e.g. "P-11", "T-101") match our pattern but are not real
+    # assets, so we keep only these as Equipment nodes.
+    KNOWN_EQUIPMENT: str = Field(
+        "P-101,C-201,T-205,HX-301,B-7",
+        description="Comma-separated canonical equipment tags for Bharat Petrochem Unit-2",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
