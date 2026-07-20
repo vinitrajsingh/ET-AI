@@ -8,7 +8,7 @@ python-multipart==0.0.20          # multipart/form-data (file uploads)
 langgraph==0.2.60
 langchain==0.3.14
 langchain-openai==0.2.14
-openai==1.59.0
+openai==1.59.6
 
 # Databases
 neo4j==5.27.0                     # Neo4j AuraDB driver (bolt+s://)
