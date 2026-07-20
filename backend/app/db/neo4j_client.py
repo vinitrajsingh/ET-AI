@@ -13,6 +13,8 @@ Usage:
         session.run("MATCH (n) RETURN n LIMIT 1")
 """
 
+import certifi
+import neo4j
 from neo4j import Driver, GraphDatabase
 
 from app.config import settings
@@ -24,13 +26,36 @@ def get_driver() -> Driver:
     """Return the shared Neo4j driver, creating it on first use (singleton)."""
     global _driver
     if _driver is None:
-        # AuraDB URIs use neo4j+s:// which already implies encryption, so we do
-        # NOT pass encrypted=/trust= here (doing so would raise a config error).
-        _driver = GraphDatabase.driver(
-            settings.NEO4J_URI,
-            auth=(settings.NEO4J_USER, settings.NEO4J_PASSWORD),
-        )
+        _driver = _build_driver()
     return _driver
+
+
+def _build_driver() -> Driver:
+    """
+    Build the driver with an explicit CA bundle.
+
+    Aura's certificate is signed by a CA that is present in certifi but missing
+    from some Windows system trust stores. The default neo4j+s:// path uses the
+    system store, so on those machines the TLS handshake fails and the driver
+    reports the misleading "Unable to retrieve routing information". To avoid
+    that, we rebuild the connection on the base scheme and hand the driver
+    certifi's bundle, which verifies Aura's cert everywhere.
+    """
+    uri = settings.NEO4J_URI
+    auth = (settings.NEO4J_USER, settings.NEO4J_PASSWORD)
+
+    if uri.startswith(("neo4j+s://", "bolt+s://")):
+        base = uri.replace("+s://", "://", 1)
+        return GraphDatabase.driver(
+            base, auth=auth, encrypted=True,
+            trusted_certificates=neo4j.TrustCustomCAs(certifi.where()),
+        )
+    if uri.startswith(("neo4j+ssc://", "bolt+ssc://")):
+        base = uri.replace("+ssc://", "://", 1)
+        return GraphDatabase.driver(base, auth=auth, encrypted=True, trusted_certificates=neo4j.TrustAll())
+
+    # Plain neo4j:// / bolt:// (e.g. a local, unencrypted instance): use as-is.
+    return GraphDatabase.driver(uri, auth=auth)
 
 
 def ping_neo4j() -> bool:

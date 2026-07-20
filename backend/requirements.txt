@@ -12,6 +12,7 @@ openai==1.59.6
 
 # Databases
 neo4j==5.27.0                     # Neo4j AuraDB driver (bolt+s://)
+certifi==2024.12.14               # CA bundle used to verify Aura's TLS cert
 qdrant-client==1.12.1             # Qdrant vector store client
 sqlalchemy==2.0.36                # ORM for Neon Postgres
 psycopg2-binary==2.9.10           # Postgres driver (SSL for Neon)
@@ -30,3 +31,7 @@ pandas==2.2.3                     # tabular normalization
 
 # Voice
 openai-whisper==20240930          # local Whisper transcription (needs ffmpeg)
+
+# Tests
+pytest==8.3.4
+httpx==0.28.1                     # FastAPI TestClient dependency

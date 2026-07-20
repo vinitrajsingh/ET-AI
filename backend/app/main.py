@@ -17,17 +17,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.neo4j_client import close_driver
 from app.db.qdrant_client import ensure_collection
-from app.routers import health
+from app.db.schema import setup_constraints
+from app.routers import health, ingestion
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: make sure the vector collection exists. Best-effort — if Qdrant
-    # isn't up yet, don't crash the whole app; /health will report it as down.
+    # Startup: make sure the vector collection and graph constraints exist. Both
+    # are best-effort. If a DB isn't up yet, don't crash the whole app; /health
+    # will report it as down.
     try:
         ensure_collection()
     except Exception as exc:
         print(f"[startup] Qdrant collection not ready: {exc}")
+    try:
+        setup_constraints()
+    except Exception as exc:
+        print(f"[startup] Neo4j constraints not applied: {exc}")
     yield
     # Shutdown: release the Neo4j connection pool.
     close_driver()
@@ -45,9 +51,9 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(ingestion.router)
 
-# Feature routers — uncomment as each is implemented:
-# from app.routers import ingestion, copilot, equipment
-# app.include_router(ingestion.router)
+# Feature routers still to come:
+# from app.routers import copilot, equipment
 # app.include_router(copilot.router)
 # app.include_router(equipment.router)

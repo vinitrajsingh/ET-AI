@@ -28,7 +28,11 @@ class ExtractedContent(BaseModel):
 # Bharat Petrochem Unit-2 tag prefixes. Deliberately tight so drawing numbers
 # like DWG-2101 are NOT mistaken for equipment tags. HX is listed first so the
 # two-letter prefix wins over a single letter during matching.
-EQUIPMENT_TAG_RE = re.compile(r"\b(?:HX|P|C|T|B)-\d{1,4}\b")
+#
+# We use explicit alphanumeric lookarounds instead of \b because filenames
+# delimit tags with underscores (..._B-7_...), and \b treats "_" as part of a
+# word, so it would never see a boundary there.
+EQUIPMENT_TAG_RE = re.compile(r"(?<![A-Za-z0-9])(?:HX|P|C|T|B)-\d{1,4}(?![A-Za-z0-9])")
 
 
 def find_equipment_tags(text: str) -> list[str]:

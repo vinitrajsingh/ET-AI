@@ -83,7 +83,65 @@ backend/
     ingestion/         # per-filetype ingester stubs (pdf, docx, excel, email, image, pid)
     services/          # embeddings, llm, whisper_service stubs
     routers/           # health (live); ingestion, copilot, equipment (stubs)
+  tests/               # smoke tests (see below)
   requirements.txt
   .env.example
   README.md
 ```
+
+## Ingestion (Phase 2)
+
+The pipeline runs six stages per file: extract text -> entities -> relationships
+-> MERGE into Neo4j -> chunk -> embed into Qdrant. It never duplicates a node
+(everything MERGEs on a stable key defined in `app/db/schema.py`).
+
+### Endpoints
+```bash
+# ingest one file
+curl -F "file=@data/corpus_full/workorders/BharatPetrochem_Unit2_WorkOrders.xlsx" \
+     http://localhost:8000/ingest
+
+# seed the whole corpus (data/corpus_full)
+curl -X POST http://localhost:8000/ingest/bulk
+```
+Both return a JSON summary (entities found, nodes created vs merged, chunks embedded).
+
+### Verify in Neo4j Browser
+List each equipment with its linked work-order count:
+```cypher
+MATCH (e:Equipment)
+OPTIONAL MATCH (e)-[:HAS_WORKORDER]->(w:WorkOrder)
+RETURN e.tag AS equipment, count(w) AS work_orders
+ORDER BY equipment;
+```
+See the T-205 near-miss link:
+```cypher
+MATCH (e:Equipment {tag:'T-205'})-[:HAS_INCIDENT]->(i:Incident) RETURN e.tag, i.id;
+```
+
+### Verify in Qdrant
+```bash
+curl http://localhost:6333/collections/sanjeevani_chunks   # points_count = chunks stored
+```
+
+### Tests
+```bash
+# offline (no DB / no API cost): extractors + table entity extraction
+pytest tests/test_text_extraction.py tests/test_entity_extraction.py -q
+
+# live (needs Neo4j resumed, Qdrant up, OpenAI key): MERGE idempotency + end-to-end
+pytest tests/test_graph_merge.py tests/test_pipeline.py -q
+
+# everything
+pytest -q
+```
+
+### Notes
+- `docling` and `openai-whisper` are in `requirements.txt` but are heavy (torch).
+  Phase-2 PDF extraction uses **PyMuPDF**; Docling is imported lazily for OCR and
+  is optional. Whisper is only needed later (Guru Mode).
+- P&ID tags come reliably from the drawing **filename**; the vision model (gpt-4o)
+  enriches the description when `USE_PID_VISION=true`.
+- Large real regulation/manual/incident PDFs contain no plant tags, so they become
+  searchable `Document` nodes + chunks rather than linking to specific equipment.
+  Reliable equipment linkage comes from the work-order sheet and P&IDs.
