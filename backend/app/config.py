@@ -37,7 +37,17 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = Field("sanjeevani_chunks", description="Default vector collection name")
     EMBEDDING_MODEL: str = Field("text-embedding-3-small", description="OpenAI embeddings model")
     EMBEDDING_DIM: int = Field(1536, description="Vector size for text-embedding-3-small")
-    LLM_MODEL: str = Field("gpt-4o-mini", description="Default chat model")
+    LLM_MODEL: str = Field("gpt-4o-mini", description="Default chat model (entity extraction)")
+    VISION_MODEL: str = Field("gpt-4o", description="Vision model for reading P&ID drawings")
+
+    # --- Ingestion tuning ---
+    # Where the demo corpus lives, relative to the backend/ working directory.
+    DATA_DIR: str = Field("data/corpus_full", description="Root folder of the demo corpus")
+    CHUNK_SIZE: int = Field(1000, description="Approx characters per embedding chunk")
+    CHUNK_OVERLAP: int = Field(150, description="Character overlap between adjacent chunks")
+    # Guard against embedding an entire 200-page report during a demo seed.
+    MAX_CHUNKS_PER_DOC: int = Field(200, description="Cap on chunks embedded per document")
+    USE_PID_VISION: bool = Field(True, description="Call the vision model on P&ID drawings")
 
     model_config = SettingsConfigDict(
         env_file=".env",
