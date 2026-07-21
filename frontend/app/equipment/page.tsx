@@ -27,12 +27,20 @@ export default function EquipmentGridPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Equipment</h1>
             <p className="text-sm text-slate-500">Bharat Petrochem Unit-2 — asset register</p>
           </div>
-          <Link
-            href="/copilot"
-            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
-          >
-            Ask Copilot
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/permits/new"
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
+            >
+              Raise a permit
+            </Link>
+            <Link
+              href="/copilot"
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
+            >
+              Ask Copilot
+            </Link>
+          </div>
         </header>
 
         {error && <ErrorBox message={error} />}

@@ -165,6 +165,67 @@ export function askCopilot(query: string, history: ChatTurn[]): Promise<CopilotA
   return postJson<CopilotAnswer>("/copilot/ask", { query, history });
 }
 
+// --- Permits / Intervention engine ---
+
+// Kept in step with intervention_service.PERMIT_TYPES on the backend.
+export const PERMIT_TYPES = ["Hot Work", "Confined Space Entry", "Working at Height", "General Maintenance"];
+
+export interface InterventionCitation {
+  type: string;
+  ref: string;
+  equipment_tag: string | null;
+  title: string | null;
+}
+
+export interface InterventionItem {
+  id: string;
+  severity: "info" | "caution" | "critical";
+  title: string;
+  body: string;
+  citation: InterventionCitation | null;
+  requires_acknowledgment: boolean;
+}
+
+export interface InterventionResult {
+  equipment_tag: string;
+  permit_type: string;
+  items: InterventionItem[];
+  has_blocking: boolean;
+}
+
+export interface Permit {
+  permit_id: string;
+  permit_type: string;
+  equipment_tag: string;
+  description: string | null;
+  status: string;
+  created_by: string | null;
+  created_date: string;
+  acknowledged_items: InterventionItem[];
+}
+
+export function evaluatePermit(body: {
+  permit_type: string;
+  equipment_tag: string;
+  description: string;
+}): Promise<InterventionResult> {
+  return postJson<InterventionResult>("/permits/evaluate", body);
+}
+
+export function createPermit(body: {
+  permit_type: string;
+  equipment_tag: string;
+  description: string;
+  created_by: string;
+  acknowledged: string[];
+}): Promise<Permit> {
+  return postJson<Permit>("/permits", body);
+}
+
+export function fetchPermits(): Promise<Permit[]> {
+  return getJson<Permit[]>("/permits");
+}
+
 // Small display helper shared by both pages: "2021-02-12" -> "12 Feb 2021".
 export function formatDate(iso: string | null): string {
   if (!iso) return "-";

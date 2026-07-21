@@ -53,9 +53,14 @@ export default function Equipment360Page() {
           <Link href="/equipment" className="text-sm text-slate-500 hover:text-slate-800">
             ← All equipment
           </Link>
-          <Link href="/copilot" className="text-sm text-slate-500 hover:text-slate-800">
-            Ask Copilot →
-          </Link>
+          <div className="flex gap-4">
+            <Link href="/permits/new" className="text-sm text-slate-500 hover:text-slate-800">
+              Raise a permit
+            </Link>
+            <Link href="/copilot" className="text-sm text-slate-500 hover:text-slate-800">
+              Ask Copilot →
+            </Link>
+          </div>
         </div>
 
         {error?.notFound && <Notice title={`No equipment "${tag}"`} body="This tag does not exist in the graph." />}
