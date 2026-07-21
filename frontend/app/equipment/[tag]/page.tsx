@@ -15,8 +15,10 @@ import {
   Equipment360,
   HealthSnapshot,
   PersonWork,
+  PredictionResult,
   TimelineItem,
   fetchEquipment360,
+  fetchEquipmentPrediction,
   formatDate,
 } from "@/lib/api";
 
@@ -25,16 +27,23 @@ export default function Equipment360Page() {
   const tag = decodeURIComponent(params.tag);
 
   const [data, setData] = useState<Equipment360 | null>(null);
+  const [predictions, setPredictions] = useState<PredictionResult[] | null>(null);
   const [error, setError] = useState<{ notFound: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setData(null);
+    setPredictions(null);
     setError(null);
     fetchEquipment360(tag)
       .then(setData)
       .catch((e) =>
         setError({ notFound: e instanceof ApiError && e.status === 404, message: String(e) })
       );
+    // Prediction loads independently; a failure here just hides the card rather
+    // than breaking the whole page.
+    fetchEquipmentPrediction(tag)
+      .then(setPredictions)
+      .catch(() => setPredictions([]));
   }, [tag]);
 
   return (
@@ -53,6 +62,7 @@ export default function Equipment360Page() {
         {data && (
           <div className="mt-4 space-y-8">
             <Header summary={data.summary} health={data.health} />
+            <Prediction predictions={predictions} />
             <Timeline items={data.timeline} />
             <Documents documents={data.documents} />
             <People people={data.people} />
@@ -84,6 +94,93 @@ function Header({ summary, health }: { summary: Equipment360["summary"]; health:
         {health.corrective_count} corrective · {health.preventive_count} preventive
       </div>
     </section>
+  );
+}
+
+// Risk colour is the loudest thing on the page, so it maps straight to severity.
+const RISK_STYLES: Record<string, { band: string; text: string; ring: string }> = {
+  High: { band: "bg-red-600", text: "text-red-700", ring: "border-red-300" },
+  Elevated: { band: "bg-orange-500", text: "text-orange-700", ring: "border-orange-300" },
+  Watch: { band: "bg-amber-400", text: "text-amber-700", ring: "border-amber-300" },
+  Low: { band: "bg-emerald-500", text: "text-emerald-700", ring: "border-emerald-300" },
+};
+
+function Prediction({ predictions }: { predictions: PredictionResult[] | null }) {
+  if (predictions === null) {
+    return <div className="text-sm text-slate-400">Analysing maintenance history...</div>;
+  }
+
+  const predicted = predictions.filter((p) => p.status === "predicted");
+  if (predicted.length === 0) {
+    // Honest, not a fake warning: nothing recurring to forecast.
+    return (
+      <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-500">
+        No recurring failure pattern detected yet.
+      </div>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      {predicted.map((p) => (
+        <PredictionCard key={p.failure_type} p={p} />
+      ))}
+    </section>
+  );
+}
+
+function PredictionCard({ p }: { p: PredictionResult }) {
+  const style = RISK_STYLES[p.risk_level ?? "Low"] ?? RISK_STYLES.Low;
+
+  return (
+    <div className={`overflow-hidden rounded-xl border bg-white shadow-sm ${style.ring}`}>
+      <div className={`flex items-center justify-between px-4 py-2 text-white ${style.band}`}>
+        <span className="text-sm font-semibold uppercase tracking-wide">⚡ Prediction · {p.failure_label}</span>
+        <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">{p.risk_level} risk</span>
+      </div>
+
+      <div className="p-4">
+        <p className="text-lg font-semibold text-slate-900">
+          Next {p.failure_label.toLowerCase()} projected around{" "}
+          <span className={style.text}>{formatDate(p.predicted_center)}</span>
+          {typeof p.days_until_center === "number" && (
+            <span className="text-slate-500"> ({p.days_until_center} days)</span>
+          )}
+        </p>
+        <p className="mt-1 text-sm text-slate-600">
+          Expected window {formatDate(p.predicted_window_start)} to {formatDate(p.predicted_window_end)}. Recurs about
+          every {p.mean_interval_months} months; current cycle is {p.current_age_months} months old.
+        </p>
+        <p className="mt-2 text-xs font-medium text-slate-500">{p.confidence_note}</p>
+
+        <details className="mt-3 rounded-lg bg-slate-50 p-3">
+          <summary className="cursor-pointer text-sm font-medium text-slate-700">
+            Evidence: {p.evidence.length} work orders
+          </summary>
+          <ul className="mt-2 space-y-2">
+            {p.evidence.map((e) => (
+              <li key={e.wo_id} className="border-l-2 border-slate-300 pl-3 text-sm">
+                <span className="font-mono text-xs text-slate-500">{e.wo_id}</span>{" "}
+                <span className="text-xs text-slate-400">{formatDate(e.date)}</span>
+                <p className="text-slate-700">{e.description}</p>
+              </li>
+            ))}
+          </ul>
+          {p.supporting_signals.length > 0 && (
+            <div className="mt-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Corroborating signals</div>
+              <ul className="mt-1 space-y-1">
+                {p.supporting_signals.map((s, i) => (
+                  <li key={i} className="text-xs text-slate-600">
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </details>
+      </div>
+    </div>
   );
 }
 

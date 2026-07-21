@@ -65,6 +65,37 @@ export interface Equipment360 {
   health: HealthSnapshot;
 }
 
+export interface PredictionEvidence {
+  wo_id: string;
+  date: string | null;
+  description: string | null;
+}
+
+export interface PredictionResult {
+  equipment_tag: string;
+  failure_type: string;
+  failure_label: string;
+  status: "predicted" | "insufficient_history";
+  cycles: number;
+  reference_date: string;
+  mean_interval_months: number | null;
+  current_age_months: number | null;
+  interval_min_days: number | null;
+  interval_max_days: number | null;
+  last_failure_date: string | null;
+  predicted_window_start: string | null;
+  predicted_center: string | null;
+  predicted_window_end: string | null;
+  days_until_window_start: number | null;
+  days_until_center: number | null;
+  risk_level: "Low" | "Watch" | "Elevated" | "High" | null;
+  risk_ratio: number | null;
+  confidence_note: string;
+  message: string;
+  evidence: PredictionEvidence[];
+  supporting_signals: string[];
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -85,6 +116,10 @@ export function fetchEquipmentList(): Promise<EquipmentListItem[]> {
 
 export function fetchEquipment360(tag: string): Promise<Equipment360> {
   return getJson<Equipment360>(`/equipment/${encodeURIComponent(tag)}`);
+}
+
+export function fetchEquipmentPrediction(tag: string): Promise<PredictionResult[]> {
+  return getJson<PredictionResult[]>(`/equipment/${encodeURIComponent(tag)}/prediction`);
 }
 
 // Small display helper shared by both pages: "2021-02-12" -> "12 Feb 2021".
