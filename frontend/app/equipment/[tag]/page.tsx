@@ -11,6 +11,9 @@ import { useEffect, useState } from "react";
 
 import {
   ApiError,
+  COMPLIANCE_STATUS_LABEL,
+  ComplianceFinding,
+  ComplianceStatus,
   DocumentLink,
   Equipment360,
   GuruNote,
@@ -19,6 +22,7 @@ import {
   PredictionResult,
   TimelineItem,
   fetchEquipment360,
+  fetchEquipmentCompliance,
   fetchEquipmentPrediction,
   fetchGuruNotes,
   formatDate,
@@ -31,26 +35,31 @@ export default function Equipment360Page() {
   const [data, setData] = useState<Equipment360 | null>(null);
   const [predictions, setPredictions] = useState<PredictionResult[] | null>(null);
   const [guruNotes, setGuruNotes] = useState<GuruNote[]>([]);
+  const [compliance, setCompliance] = useState<ComplianceFinding[]>([]);
   const [error, setError] = useState<{ notFound: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setData(null);
     setPredictions(null);
     setGuruNotes([]);
+    setCompliance([]);
     setError(null);
     fetchEquipment360(tag)
       .then(setData)
       .catch((e) =>
         setError({ notFound: e instanceof ApiError && e.status === 404, message: String(e) })
       );
-    // Prediction and guru notes load independently; a failure just hides that
-    // section rather than breaking the whole page.
+    // These load independently; a failure just hides that section rather than
+    // breaking the whole page.
     fetchEquipmentPrediction(tag)
       .then(setPredictions)
       .catch(() => setPredictions([]));
     fetchGuruNotes(tag)
       .then(setGuruNotes)
       .catch(() => setGuruNotes([]));
+    fetchEquipmentCompliance(tag)
+      .then(setCompliance)
+      .catch(() => setCompliance([]));
   }, [tag]);
 
   return (
@@ -83,6 +92,7 @@ export default function Equipment360Page() {
           <div className="mt-4 space-y-8">
             <Header summary={data.summary} health={data.health} />
             <Prediction predictions={predictions} />
+            <Compliance findings={compliance} />
             <TribalKnowledge notes={guruNotes} />
             <Timeline items={data.timeline} />
             <Documents documents={data.documents} />

@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     # Where the demo corpus lives, relative to the backend/ working directory.
     DATA_DIR: str = Field("data/corpus_full", description="Root folder of the demo corpus")
     ASSET_REGISTER: str = Field("data/asset_register.json", description="Equipment -> manual/regulation mapping")
+    COMPLIANCE_RULES: str = Field("data/compliance_rules.json", description="HSE compliance rule definitions")
     CHUNK_SIZE: int = Field(1000, description="Approx characters per embedding chunk")
     CHUNK_OVERLAP: int = Field(150, description="Character overlap between adjacent chunks")
     # Guard against embedding an entire 200-page report during a demo seed.

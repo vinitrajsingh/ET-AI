@@ -274,6 +274,58 @@ export function approveGuruNote(noteId: string): Promise<{ note_id: string; appr
   return postJson(`/guru/notes/${noteId}/approve`, {});
 }
 
+// --- HSE Compliance ---
+
+export type ComplianceStatus = "compliant" | "due_soon" | "overdue" | "missing_evidence";
+export type HSECategory = "Health" | "Safety" | "Environment";
+
+export interface ComplianceFinding {
+  equipment_tag: string;
+  rule_code: string;
+  title: string;
+  category: HSECategory;
+  severity: string;
+  regulation: string;
+  regulation_doc_id: string | null;
+  requires: string;
+  status: ComplianceStatus;
+  evidence_ref: string | null;
+  evidence_type: string | null;
+  evidence_date: string | null;
+  due_date: string | null;
+  gap: string | null;
+}
+
+export interface AssetCompliance {
+  tag: string;
+  name: string | null;
+  counts: Record<ComplianceStatus, number>;
+  worst_status: ComplianceStatus;
+}
+
+export interface FleetCompliance {
+  assets: AssetCompliance[];
+  totals: Record<ComplianceStatus, number>;
+  category_breakdown: Record<HSECategory, { total: number; gaps: number }>;
+  findings: ComplianceFinding[];
+}
+
+export function fetchEquipmentCompliance(tag: string): Promise<ComplianceFinding[]> {
+  return getJson<ComplianceFinding[]>(`/equipment/${encodeURIComponent(tag)}/compliance`);
+}
+
+export function fetchFleetCompliance(): Promise<FleetCompliance> {
+  return getJson<FleetCompliance>("/compliance");
+}
+
+// Shared status styling for compliance pills (used on both the asset and fleet pages).
+export const COMPLIANCE_STATUS_LABEL: Record<ComplianceStatus, string> = {
+  compliant: "Compliant",
+  due_soon: "Due soon",
+  overdue: "Overdue",
+  missing_evidence: "No record",
+};
+
 // Small display helper shared by both pages: "2021-02-12" -> "12 Feb 2021".
 export function formatDate(iso: string | null): string {
   if (!iso) return "-";

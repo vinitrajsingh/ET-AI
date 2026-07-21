@@ -1,0 +1,81 @@
+{
+  "_comment": "Explicit, auditable compliance rules for Bharat Petrochem Unit-2. Each rule maps a regulation to what it requires, which assets it applies to, and how to check it against real work-order evidence. interval_months drives the overdue/due-soon math (against the fixed prediction reference date). Categories make the Health/Safety/Environment coverage explicit. regulation_doc_id is only rendered as a link when the asset is actually GOVERNED_BY that document in the graph.",
+  "rules": [
+    {
+      "code": "STAT-BOILER-INSP",
+      "title": "Statutory boiler inspection and hydro test",
+      "category": "Safety",
+      "regulation": "Factories Act 1948 (statutory boiler inspection)",
+      "regulation_doc_id": "Factories-Act-1948",
+      "applies_to": ["B-7"],
+      "requires": "Annual statutory boiler inspection and hydrostatic test by a competent authority.",
+      "check": "interval",
+      "evidence_keywords": ["boiler inspection", "statutory boiler"],
+      "interval_months": 12,
+      "severity": "critical"
+    },
+    {
+      "code": "TANK-THICKNESS",
+      "title": "Tank shell inspection and thickness survey",
+      "category": "Safety",
+      "regulation": "OISD-STD-129 / API-653 (tank integrity)",
+      "regulation_doc_id": null,
+      "applies_to": ["T-205"],
+      "requires": "Periodic external shell inspection and wall-thickness survey of storage tanks.",
+      "check": "interval",
+      "evidence_keywords": ["thickness survey", "shell inspection"],
+      "interval_months": 36,
+      "severity": "caution"
+    },
+    {
+      "code": "OISD105-HOTWORK",
+      "title": "Hot-work gas-testing and vent isolation verification",
+      "category": "Safety",
+      "regulation": "OISD-STD-105 (Work Permit System)",
+      "regulation_doc_id": "OISD-STD-105",
+      "applies_to": ["T-205", "P-101", "C-201", "B-7", "HX-301"],
+      "requires": "Documented gas testing and positive isolation before hot work, especially where a hot-work near-miss is on record.",
+      "check": "incident_hotwork",
+      "severity": "critical"
+    },
+    {
+      "code": "OISD106-RELIEF",
+      "title": "Pressure-relief valve testing",
+      "category": "Safety",
+      "regulation": "OISD-STD-106 (Pressure Relief and Disposal)",
+      "regulation_doc_id": "OISD-STD-106",
+      "applies_to": ["C-201", "HX-301"],
+      "requires": "Periodic testing and certification of pressure-relief and safety valves.",
+      "check": "interval",
+      "evidence_keywords": ["relief valve", "safety valve", "pressure relief"],
+      "interval_months": 24,
+      "severity": "caution"
+    },
+    {
+      "code": "ENV-CTO",
+      "title": "Environmental monitoring (Consent to Operate)",
+      "category": "Environment",
+      "regulation": "Consent to Operate (CPCB / State PCB)",
+      "regulation_doc_id": null,
+      "applies_to": ["T-205", "B-7"],
+      "requires": "Periodic emission and effluent monitoring under Consent-to-Operate conditions (VOC for naphtha storage, stack emissions for the boiler).",
+      "check": "interval",
+      "evidence_keywords": ["emission", "stack test", "environmental monitoring", "consent to operate", "effluent"],
+      "interval_months": 12,
+      "severity": "caution"
+    },
+    {
+      "code": "HEALTH-EXPOSURE",
+      "title": "Occupational exposure monitoring",
+      "category": "Health",
+      "regulation": "Factories Act 1948 (occupational health)",
+      "regulation_doc_id": "Factories-Act-1948",
+      "applies_to": ["C-201", "P-101"],
+      "requires": "Periodic noise and gas-exposure monitoring for personnel around rotating and pressure equipment.",
+      "check": "interval",
+      "evidence_keywords": ["noise survey", "exposure monitoring", "occupational health", "gas monitoring"],
+      "interval_months": 12,
+      "severity": "info"
+    }
+  ]
+}
