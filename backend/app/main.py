@@ -18,7 +18,7 @@ from app.config import settings
 from app.db.neo4j_client import close_driver
 from app.db.qdrant_client import ensure_collection
 from app.db.schema import setup_constraints
-from app.routers import health, ingestion
+from app.routers import equipment, health, ingestion
 
 
 @asynccontextmanager
@@ -52,8 +52,8 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(ingestion.router)
+app.include_router(equipment.router)
 
 # Feature routers still to come:
-# from app.routers import copilot, equipment
+# from app.routers import copilot
 # app.include_router(copilot.router)
-# app.include_router(equipment.router)

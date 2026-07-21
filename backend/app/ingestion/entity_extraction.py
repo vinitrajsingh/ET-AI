@@ -101,11 +101,12 @@ def work_orders_from_table(rows: list[dict]) -> ExtractedEntities:
         if not tag or not wo_id:
             continue
 
+        wo_date = _clean(row.get("completed_date")) or _clean(row.get("reported_date"))
         result.work_orders.append(
             WorkOrderEntity(
                 wo_id=wo_id,
                 equipment_tag=tag,
-                date=_clean(row.get("completed_date")) or _clean(row.get("reported_date")),
+                date=wo_date,
                 wo_type=_clean(row.get("wo_type")),
                 description=_clean(row.get("description")),
                 parts_used=_clean(row.get("parts_used")),
@@ -126,11 +127,16 @@ def work_orders_from_table(rows: list[dict]) -> ExtractedEntities:
             seen_people.add(person)
             result.people.append(PersonEntity(name=person))
 
+        # A work order that references an incident id carries the near-miss story
+        # and its date, so the incident inherits that date for the timeline.
         for inc_id in _INCIDENT_REF_RE.findall(row.get("description") or ""):
             if inc_id not in seen_incidents:
                 seen_incidents.add(inc_id)
                 result.incidents.append(
-                    IncidentEntity(id=inc_id, equipment_tag=tag, description=_clean(row.get("description")))
+                    IncidentEntity(
+                        id=inc_id, date=wo_date, equipment_tag=tag,
+                        description=_clean(row.get("description")),
+                    )
                 )
 
     return result

@@ -35,6 +35,9 @@ logger = logging.getLogger(__name__)
 # from a generic manual/regulation and must not become an Equipment node.
 KNOWN_EQUIPMENT = {t.strip() for t in settings.KNOWN_EQUIPMENT.split(",") if t.strip()}
 
+# Document types whose free text cannot be trusted to reference plant equipment.
+_GENERIC_DOC_TYPES = {"manual", "regulation", "incident"}
+
 
 class IngestSummary(BaseModel):
     file: str
@@ -134,6 +137,13 @@ def _entities_for(content: ExtractedContent) -> ExtractedEntities:
     else:
         entities = extract_entities(content.text, known_tags=content.equipment_tags)
         _ensure_literal_tags(entities, content.equipment_tags)
+
+    # Generic real documents (OEM manuals, OISD/Factory Act regs, CSB incidents)
+    # don't actually name our fictional plant's assets, so any equipment "found"
+    # in their text is a false positive. Their real linkage comes from the asset
+    # register (HAS_MANUAL / GOVERNED_BY), so we drop the noisy MENTIONS here.
+    if content.doc_type in _GENERIC_DOC_TYPES:
+        entities.equipment = []
 
     return _keep_known_equipment(entities)
 
