@@ -90,7 +90,9 @@ export interface PredictionResult {
   days_until_center: number | null;
   risk_level: "Low" | "Watch" | "Elevated" | "High" | null;
   risk_ratio: number | null;
+  confidence: number | null;
   confidence_note: string;
+  explanation: string;
   message: string;
   evidence: PredictionEvidence[];
   supporting_signals: string[];

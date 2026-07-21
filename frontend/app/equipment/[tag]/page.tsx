@@ -134,9 +134,14 @@ function PredictionCard({ p }: { p: PredictionResult }) {
 
   return (
     <div className={`overflow-hidden rounded-xl border bg-white shadow-sm ${style.ring}`}>
-      <div className={`flex items-center justify-between px-4 py-2 text-white ${style.band}`}>
+      <div className={`flex items-center justify-between gap-2 px-4 py-2 text-white ${style.band}`}>
         <span className="text-sm font-semibold uppercase tracking-wide">⚡ Prediction · {p.failure_label}</span>
-        <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">{p.risk_level} risk</span>
+        <div className="flex items-center gap-2">
+          {typeof p.confidence === "number" && (
+            <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">{p.confidence}% confidence</span>
+          )}
+          <span className="rounded-full bg-white/25 px-2 py-0.5 text-xs font-bold">{p.risk_level} risk</span>
+        </div>
       </div>
 
       <div className="p-4">
@@ -147,11 +152,14 @@ function PredictionCard({ p }: { p: PredictionResult }) {
             <span className="text-slate-500"> ({p.days_until_center} days)</span>
           )}
         </p>
-        <p className="mt-1 text-sm text-slate-600">
+
+        {/* The plain-language "why", so the number is self-explaining on screen. */}
+        <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{p.explanation}</p>
+
+        <p className="mt-2 text-xs text-slate-500">
           Expected window {formatDate(p.predicted_window_start)} to {formatDate(p.predicted_window_end)}. Recurs about
           every {p.mean_interval_months} months; current cycle is {p.current_age_months} months old.
         </p>
-        <p className="mt-2 text-xs font-medium text-slate-500">{p.confidence_note}</p>
 
         <details className="mt-3 rounded-lg bg-slate-50 p-3">
           <summary className="cursor-pointer text-sm font-medium text-slate-700">
