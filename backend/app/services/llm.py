@@ -7,11 +7,14 @@ the ingestion stages. Embeddings have their own module (embeddings.py).
 """
 
 import json
+import logging
 from functools import lru_cache
 
 from openai import OpenAI
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache
@@ -21,23 +24,34 @@ def get_client() -> OpenAI:
 
 
 def complete_json(system: str, user: str, model: str | None = None) -> dict:
-    """
-    Run a chat completion in JSON mode and return the parsed object.
+    """JSON-mode completion returning just the parsed object (see _verbose for usage)."""
+    data, _ = complete_json_verbose(system, user, model)
+    return data
 
-    JSON mode makes the model emit syntactically valid JSON, but the caller is
-    still responsible for validating the shape (we do that with pydantic in
-    entity_extraction). Raises on a network error or unparseable body.
+
+def complete_json_verbose(system: str, user: str, model: str | None = None) -> tuple[dict, dict]:
     """
+    Run a chat completion in JSON mode and return (parsed object, token usage).
+
+    JSON mode makes the model emit valid JSON, but the caller still validates the
+    shape (pydantic). We log the token usage on every call so the real cost is
+    visible in the backend logs, and hand it back for a debug view. Raises on a
+    network error or unparseable body.
+    """
+    used_model = model or settings.LLM_MODEL
     resp = get_client().chat.completions.create(
-        model=model or settings.LLM_MODEL,
+        model=used_model,
         response_format={"type": "json_object"},
-        temperature=0,  # extraction should be deterministic, not creative
+        temperature=0,  # extraction and grounded answers should be deterministic
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
     )
-    return json.loads(resp.choices[0].message.content)
+    u = resp.usage
+    usage = {"prompt_tokens": u.prompt_tokens, "completion_tokens": u.completion_tokens, "total_tokens": u.total_tokens}
+    logger.info("LLM %s tokens: prompt=%d completion=%d", used_model, u.prompt_tokens, u.completion_tokens)
+    return json.loads(resp.choices[0].message.content), usage
 
 
 def describe_image(prompt: str, image_b64: str, mime: str = "image/png", model: str | None = None) -> str:

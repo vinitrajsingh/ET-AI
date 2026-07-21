@@ -14,7 +14,7 @@ does not cover the question, the prompt requires it to say so instead of guessin
 
 from pydantic import BaseModel, Field
 
-from app.services.llm import complete_json
+from app.services.llm import complete_json_verbose
 from app.services.retrieval_service import (
     ChunkHit,
     GraphContext,
@@ -41,6 +41,15 @@ class Citation(BaseModel):
     title: str | None = None
     snippet: str | None = None
     equipment_tag: str | None = None  # link target for the frontend, when relevant
+    # Only present where we have a real number: the Qdrant similarity for a
+    # retrieved passage. Graph facts have no comparable score, so we leave it None
+    # rather than invent one.
+    score: float | None = None
+
+
+# Structured graph evidence is listed before supporting document passages. This
+# is the "principled ordering" without fabricating per-citation confidence.
+_TYPE_PRIORITY = {"prediction": 0, "incident": 1, "workorder": 2, "document": 3}
 
 
 class CopilotAnswer(BaseModel):
@@ -48,6 +57,7 @@ class CopilotAnswer(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     resolved_equipment: str | None = None
     context_used: dict = Field(default_factory=dict)  # for a debug/expand view
+    usage: dict = Field(default_factory=dict)  # token counts for cost tracking
 
 
 def answer_question(query: str, history: list[dict] | None = None) -> CopilotAnswer:
@@ -66,22 +76,25 @@ def answer_question(query: str, history: list[dict] | None = None) -> CopilotAns
     label_map.update(passage_map)
 
     user_prompt = _user_prompt(query, graph_block, passage_block, history)
-    raw = complete_json(_SYSTEM, user_prompt)
+    raw, usage = complete_json_verbose(_SYSTEM, user_prompt)
 
     answer = (raw.get("answer") or "").strip()
     cited = [label for label in raw.get("citations", []) if label in label_map]
+    citations = _order_citations(_dedupe_citations(label_map[label] for label in cited))
 
     return CopilotAnswer(
         answer=answer,
-        citations=_dedupe_citations(label_map[label] for label in cited),
+        citations=citations,
         resolved_equipment=tag,
         context_used={
             "graph_facts": graph_block or None,
             "passages": [
-                {"label": f"D{i + 1}", "doc_id": c.doc_id, "source": c.source, "snippet": _short(c.text)}
+                {"label": f"D{i + 1}", "doc_id": c.doc_id, "source": c.source,
+                 "score": round(c.score, 3) if c.score is not None else None, "snippet": _short(c.text)}
                 for i, c in enumerate(chunks)
             ],
         },
+        usage=usage,
     )
 
 
@@ -145,7 +158,7 @@ def _passage_block(chunks: list[ChunkHit]) -> tuple[str, dict[str, Citation]]:
         lines.append(f"[{label}] (source: {c.source}): {_short(c.text, 500)}")
         labels[label] = Citation(
             type="document", ref=c.doc_id or c.source or label,
-            title=c.source, snippet=_short(c.text, 240),
+            title=c.source, snippet=_short(c.text, 240), score=c.score,
         )
     return "\n".join(lines), labels
 
@@ -189,3 +202,15 @@ def _dedupe_citations(citations) -> list[Citation]:
             seen.add(key)
             unique.append(c)
     return unique
+
+
+def _order_citations(citations: list[Citation]) -> list[Citation]:
+    """
+    Order graph evidence before documents, and rank documents by their real
+    retrieval score. No fabricated confidence: graph items simply keep their
+    incoming (already meaningful) order within their type.
+    """
+    return sorted(
+        citations,
+        key=lambda c: (_TYPE_PRIORITY.get(c.type, 99), -(c.score or 0.0)),
+    )

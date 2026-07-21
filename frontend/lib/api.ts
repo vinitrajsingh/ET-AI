@@ -104,6 +104,7 @@ export interface CopilotCitation {
   title: string | null;
   snippet: string | null;
   equipment_tag: string | null;
+  score: number | null;
 }
 
 export interface CopilotAnswer {
@@ -112,8 +113,9 @@ export interface CopilotAnswer {
   resolved_equipment: string | null;
   context_used: {
     graph_facts?: string | null;
-    passages?: { label: string; doc_id: string | null; source: string | null; snippet: string | null }[];
+    passages?: { label: string; doc_id: string | null; source: string | null; score: number | null; snippet: string | null }[];
   };
+  usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
 }
 
 export interface ChatTurn {

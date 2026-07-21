@@ -13,6 +13,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   citations?: CopilotCitation[];
+  debug?: Pick<CopilotAnswer, "resolved_equipment" | "context_used" | "usage">;
 }
 
 const STARTERS = [
@@ -42,7 +43,15 @@ export default function CopilotPage() {
     setBusy(true);
     try {
       const res: CopilotAnswer = await askCopilot(query, history);
-      setMessages((prev) => [...prev, { role: "assistant", content: res.answer, citations: res.citations }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: res.answer,
+          citations: res.citations,
+          debug: { resolved_equipment: res.resolved_equipment, context_used: res.context_used, usage: res.usage },
+        },
+      ]);
     } catch (e) {
       setMessages((prev) => [
         ...prev,
@@ -134,6 +143,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           {message.content}
         </div>
         {message.citations && message.citations.length > 0 && <Sources citations={message.citations} />}
+        {message.debug && <DebugPanel debug={message.debug} />}
       </div>
     </div>
   );
@@ -146,16 +156,68 @@ const CITATION_STYLES: Record<string, string> = {
   document: "border-sky-300 bg-sky-50 text-sky-700",
 };
 
+// Split citations into the two halves of hybrid GraphRAG so the mix is obvious:
+// structured facts from the graph vs passages from documents.
 function Sources({ citations }: { citations: CopilotCitation[] }) {
+  const graph = citations.filter((c) => c.type !== "document");
+  const documents = citations.filter((c) => c.type === "document");
+
+  return (
+    <div className="space-y-2">
+      {graph.length > 0 && <SourceGroup label="📊 Graph evidence" citations={graph} />}
+      {documents.length > 0 && <SourceGroup label="📄 Document evidence" citations={documents} />}
+    </div>
+  );
+}
+
+function SourceGroup({ label, citations }: { label: string; citations: CopilotCitation[] }) {
   return (
     <div>
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Sources</div>
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</div>
       <div className="flex flex-wrap gap-2">
         {citations.map((c, i) => (
           <CitationChip key={`${c.type}-${c.ref}-${i}`} c={c} />
         ))}
       </div>
     </div>
+  );
+}
+
+function DebugPanel({ debug }: { debug: NonNullable<ChatMessage["debug"]> }) {
+  const passages = debug.context_used.passages ?? [];
+  return (
+    <details className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+      <summary className="cursor-pointer font-medium text-slate-500">How did I arrive at this?</summary>
+      <div className="mt-2 space-y-2">
+        <div>
+          <span className="font-semibold">Detected equipment:</span> {debug.resolved_equipment ?? "none"}
+        </div>
+        <div>
+          <span className="font-semibold">Tokens:</span> {debug.usage.prompt_tokens ?? "?"} prompt +{" "}
+          {debug.usage.completion_tokens ?? "?"} completion = {debug.usage.total_tokens ?? "?"}
+        </div>
+        {debug.context_used.graph_facts && (
+          <div>
+            <div className="font-semibold">Graph facts retrieved:</div>
+            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded bg-white p-2">
+              {debug.context_used.graph_facts}
+            </pre>
+          </div>
+        )}
+        <div>
+          <div className="font-semibold">Vector chunks retrieved ({passages.length}):</div>
+          <ul className="mt-1 space-y-1">
+            {passages.map((p) => (
+              <li key={p.label} className="rounded bg-white p-2">
+                <span className="font-mono">{p.label}</span> · {p.source}
+                {typeof p.score === "number" && <span className="text-slate-400"> · score {p.score}</span>}
+                <div className="text-slate-500">{p.snippet}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </details>
   );
 }
 
