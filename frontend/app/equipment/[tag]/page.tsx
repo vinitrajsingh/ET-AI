@@ -70,6 +70,9 @@ export default function Equipment360Page() {
             ← All equipment
           </Link>
           <div className="flex gap-4">
+            <Link href="/compliance" className="text-sm text-slate-500 hover:text-slate-800">
+              Compliance
+            </Link>
             <Link href="/guru" className="text-sm text-slate-500 hover:text-slate-800">
               Guru Mode
             </Link>
@@ -220,6 +223,68 @@ function PredictionCard({ p }: { p: PredictionResult }) {
         </details>
       </div>
     </div>
+  );
+}
+
+const COMPLIANCE_PILL: Record<ComplianceStatus, string> = {
+  compliant: "bg-emerald-100 text-emerald-700",
+  due_soon: "bg-amber-100 text-amber-700",
+  overdue: "bg-red-100 text-red-700",
+  missing_evidence: "bg-red-100 text-red-700",
+};
+
+const CATEGORY_TAG: Record<string, string> = {
+  Health: "bg-blue-100 text-blue-700",
+  Safety: "bg-orange-100 text-orange-700",
+  Environment: "bg-green-100 text-green-700",
+};
+
+export function CompliancePill({ status }: { status: ComplianceStatus }) {
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${COMPLIANCE_PILL[status]}`}>
+      {COMPLIANCE_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+function Compliance({ findings }: { findings: ComplianceFinding[] }) {
+  if (findings.length === 0) return null;
+  return (
+    <section>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Compliance <span className="text-slate-300">({findings.length})</span>
+      </h2>
+      <div className="space-y-3">
+        {findings.map((f) => (
+          <div key={f.rule_code} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <CompliancePill status={f.status} />
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_TAG[f.category]}`}>
+                {f.category}
+              </span>
+              <h3 className="text-sm font-semibold text-slate-900">{f.title}</h3>
+            </div>
+            <p className="mt-2 text-sm text-slate-700">{f.requires}</p>
+            <div className="mt-2 text-xs text-slate-500">
+              <span>Regulation: </span>
+              {f.regulation_doc_id ? (
+                <span className="font-medium text-sky-700">{f.regulation}</span>
+              ) : (
+                <span>{f.regulation}</span>
+              )}
+            </div>
+            {f.evidence_ref && (
+              <div className="mt-1 text-xs text-slate-500">
+                Evidence: <span className="font-mono">{f.evidence_ref}</span>
+                {f.evidence_date ? ` (${formatDate(f.evidence_date)})` : ""}
+                {f.due_date ? ` · next due ${formatDate(f.due_date)}` : ""}
+              </div>
+            )}
+            {f.gap && <p className="mt-1 text-xs font-medium text-red-600">{f.gap}</p>}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
