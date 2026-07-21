@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # Guard against embedding an entire 200-page report during a demo seed.
     MAX_CHUNKS_PER_DOC: int = Field(200, description="Cap on chunks embedded per document")
     USE_PID_VISION: bool = Field(True, description="Call the vision model on P&ID drawings")
+    # Pinned "today" for the prediction demo so days-remaining never drifts (or goes
+    # negative) between now and the presentation. Defaults to the latest work-order
+    # date in the corpus.
+    PREDICTION_REFERENCE_DATE: str = Field("2025-06-01", description="Fixed 'today' for interval predictions")
     # The fictional plant's asset register. Tag-like strings in generic manuals
     # and regulations (e.g. "P-11", "T-101") match our pattern but are not real
     # assets, so we keep only these as Equipment nodes.
