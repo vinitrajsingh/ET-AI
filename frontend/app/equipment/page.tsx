@@ -29,6 +29,12 @@ export default function EquipmentGridPage() {
           </div>
           <div className="flex gap-2">
             <Link
+              href="/guru"
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
+            >
+              Guru Mode
+            </Link>
+            <Link
               href="/permits/new"
               className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
             >

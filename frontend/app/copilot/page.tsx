@@ -154,6 +154,7 @@ const CITATION_STYLES: Record<string, string> = {
   incident: "border-red-300 bg-red-50 text-red-700",
   prediction: "border-orange-300 bg-orange-50 text-orange-700",
   document: "border-sky-300 bg-sky-50 text-sky-700",
+  guru: "border-violet-300 bg-violet-50 text-violet-700",
 };
 
 // Split citations into the two halves of hybrid GraphRAG so the mix is obvious:
@@ -223,7 +224,13 @@ function DebugPanel({ debug }: { debug: NonNullable<ChatMessage["debug"]> }) {
 
 function CitationChip({ c }: { c: CopilotCitation }) {
   const label =
-    c.type === "prediction" ? `Prediction · ${c.ref}` : c.type === "document" ? c.title ?? c.ref : c.ref;
+    c.type === "guru"
+      ? `👤 ${c.title ?? c.ref}`
+      : c.type === "prediction"
+        ? `Prediction · ${c.ref}`
+        : c.type === "document"
+          ? c.title ?? c.ref
+          : c.ref;
   const style = CITATION_STYLES[c.type] ?? CITATION_STYLES.workorder;
   const chip = (
     <span

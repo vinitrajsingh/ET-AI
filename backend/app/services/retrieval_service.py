@@ -17,6 +17,7 @@ from app.db.qdrant_client import get_qdrant
 from app.ingestion.extractors.base import find_equipment_tags
 from app.services.embeddings import embed_query
 from app.services.equipment_service import DocumentLink, TimelineItem, get_equipment_360
+from app.services.guru_service import GuruNoteOut, list_guru_notes
 from app.services.prediction_service import PredictionResult, get_predictions
 
 # The plant's real assets, parsed once. Used to keep query resolution honest.
@@ -40,6 +41,7 @@ class GraphContext(BaseModel):
     timeline: list[TimelineItem] = Field(default_factory=list)
     documents: list[DocumentLink] = Field(default_factory=list)
     doc_ids: list[str] = Field(default_factory=list)
+    guru_notes: list[GuruNoteOut] = Field(default_factory=list)
 
 
 def vector_search(
@@ -122,4 +124,5 @@ def gather_graph_context(tag: str) -> GraphContext | None:
         timeline=bio.timeline[:6],
         documents=bio.documents,
         doc_ids=[d.doc_id for d in bio.documents],
+        guru_notes=list_guru_notes(tag),  # approved only: trusted tribal knowledge
     )

@@ -38,6 +38,7 @@ class Rel(str, Enum):
     MENTIONS = "MENTIONS"
     WORKED_ON = "WORKED_ON"
     HAS_FAILURE_MODE = "HAS_FAILURE_MODE"
+    RECORDED_BY = "RECORDED_BY"  # GuruNote -> Person who recorded it
     # Curated links from the asset register (see app/ingestion/asset_register.py):
     # they tie an asset to the specific manual/regulation PDF that applies to it,
     # which generic real documents never state in their own text.
@@ -53,6 +54,7 @@ RELATIONSHIPS: list[tuple[Node, Rel, Node]] = [
     (Node.PERMIT, Rel.APPLIES_TO, Node.EQUIPMENT),
     (Node.REGULATION, Rel.GOVERNS, Node.EQUIPMENT),
     (Node.GURU_NOTE, Rel.ABOUT, Node.EQUIPMENT),
+    (Node.GURU_NOTE, Rel.RECORDED_BY, Node.PERSON),
     (Node.DOCUMENT, Rel.MENTIONS, Node.EQUIPMENT),
     (Node.PERSON, Rel.WORKED_ON, Node.EQUIPMENT),
     (Node.EQUIPMENT, Rel.HAS_FAILURE_MODE, Node.FAILURE_MODE),

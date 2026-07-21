@@ -99,7 +99,7 @@ export interface PredictionResult {
 }
 
 export interface CopilotCitation {
-  type: "workorder" | "incident" | "document" | "prediction";
+  type: "workorder" | "incident" | "document" | "prediction" | "guru";
   ref: string;
   title: string | null;
   snippet: string | null;
@@ -224,6 +224,54 @@ export function createPermit(body: {
 
 export function fetchPermits(): Promise<Permit[]> {
   return getJson<Permit[]>("/permits");
+}
+
+// --- Guru Mode ---
+
+export interface GuruNote {
+  note_id: string;
+  equipment_tag: string;
+  engineer_name: string;
+  symptom: string;
+  meaning: string;
+  recommended_action: string;
+  summary: string;
+  transcript: string;
+  language: string;
+  approved: boolean;
+}
+
+// Sends multipart so it can carry an optional audio file alongside the fields.
+export async function createGuruNote(form: {
+  equipment_tag: string;
+  engineer_name: string;
+  transcript?: string;
+  approved: boolean;
+  audio?: File | null;
+}): Promise<GuruNote> {
+  const body = new FormData();
+  body.append("equipment_tag", form.equipment_tag);
+  body.append("engineer_name", form.engineer_name);
+  body.append("approved", String(form.approved));
+  if (form.transcript) body.append("transcript", form.transcript);
+  if (form.audio) body.append("audio", form.audio);
+
+  const res = await fetch(`${API_BASE}/guru/notes`, { method: "POST", body });
+  if (!res.ok) {
+    throw new ApiError(res.status, `Note capture failed (${res.status})`);
+  }
+  return res.json() as Promise<GuruNote>;
+}
+
+export function fetchGuruNotes(equipmentTag?: string, includeUnapproved = false): Promise<GuruNote[]> {
+  const params = new URLSearchParams();
+  if (equipmentTag) params.set("equipment_tag", equipmentTag);
+  if (includeUnapproved) params.set("include_unapproved", "true");
+  return getJson<GuruNote[]>(`/guru/notes?${params.toString()}`);
+}
+
+export function approveGuruNote(noteId: string): Promise<{ note_id: string; approved: boolean }> {
+  return postJson(`/guru/notes/${noteId}/approve`, {});
 }
 
 // Small display helper shared by both pages: "2021-02-12" -> "12 Feb 2021".

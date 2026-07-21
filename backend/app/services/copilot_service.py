@@ -28,6 +28,8 @@ _SYSTEM = (
     "Answer ONLY from the GRAPH FACTS and DOCUMENT PASSAGES provided. Write like a "
     "knowledgeable plant engineer: direct and practical. Cite every factual claim using "
     "the bracketed source labels (for example WO-1041, INC-2023-41, D1, PREDICTION). "
+    "When you use a senior engineer's note (tribal knowledge), credit that engineer by "
+    "name in your answer. "
     "If the provided context does not contain the answer, say you do not have enough "
     "information and cite nothing. Never invent part numbers, dates, clause numbers, or "
     "any fact that is not in the context. "
@@ -49,7 +51,7 @@ class Citation(BaseModel):
 
 # Structured graph evidence is listed before supporting document passages. This
 # is the "principled ordering" without fabricating per-citation confidence.
-_TYPE_PRIORITY = {"prediction": 0, "incident": 1, "workorder": 2, "document": 3}
+_TYPE_PRIORITY = {"prediction": 0, "guru": 1, "incident": 2, "workorder": 3, "document": 4}
 
 
 class CopilotAnswer(BaseModel):
@@ -130,6 +132,18 @@ def _graph_block(ctx: GraphContext | None) -> tuple[str, dict[str, Citation]]:
                 type="incident" if item.kind == "incident" else "workorder",
                 ref=item.id, title=f"{kind} {item.date}",
                 snippet=_short(item.description), equipment_tag=ctx.tag,
+            )
+
+    if ctx.guru_notes:
+        # A retiring engineer's captured wisdom, credited by name. This is the
+        # payoff of Guru Mode: their voice answering a live question.
+        lines.append("TRIBAL KNOWLEDGE (senior engineer notes):")
+        for g in ctx.guru_notes:
+            detail = g.summary or g.symptom
+            lines.append(f"  [{g.note_id}] {g.engineer_name}: {detail} Meaning: {g.meaning}. Action: {g.recommended_action}")
+            labels[g.note_id] = Citation(
+                type="guru", ref=g.note_id, title=g.engineer_name,
+                snippet=detail, equipment_tag=ctx.tag,
             )
 
     if ctx.documents:

@@ -18,7 +18,7 @@ from app.config import settings
 from app.db.neo4j_client import close_driver
 from app.db.qdrant_client import ensure_collection
 from app.db.schema import setup_constraints
-from app.routers import copilot, equipment, health, ingestion, permits, prediction
+from app.routers import copilot, equipment, guru, health, ingestion, permits, prediction
 from app.services.permit_service import init_permit_storage
 
 
@@ -61,3 +61,4 @@ app.include_router(equipment.router)
 app.include_router(prediction.router)
 app.include_router(copilot.router)
 app.include_router(permits.router)
+app.include_router(guru.router)

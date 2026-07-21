@@ -13,12 +13,14 @@ import {
   ApiError,
   DocumentLink,
   Equipment360,
+  GuruNote,
   HealthSnapshot,
   PersonWork,
   PredictionResult,
   TimelineItem,
   fetchEquipment360,
   fetchEquipmentPrediction,
+  fetchGuruNotes,
   formatDate,
 } from "@/lib/api";
 
@@ -28,22 +30,27 @@ export default function Equipment360Page() {
 
   const [data, setData] = useState<Equipment360 | null>(null);
   const [predictions, setPredictions] = useState<PredictionResult[] | null>(null);
+  const [guruNotes, setGuruNotes] = useState<GuruNote[]>([]);
   const [error, setError] = useState<{ notFound: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setData(null);
     setPredictions(null);
+    setGuruNotes([]);
     setError(null);
     fetchEquipment360(tag)
       .then(setData)
       .catch((e) =>
         setError({ notFound: e instanceof ApiError && e.status === 404, message: String(e) })
       );
-    // Prediction loads independently; a failure here just hides the card rather
-    // than breaking the whole page.
+    // Prediction and guru notes load independently; a failure just hides that
+    // section rather than breaking the whole page.
     fetchEquipmentPrediction(tag)
       .then(setPredictions)
       .catch(() => setPredictions([]));
+    fetchGuruNotes(tag)
+      .then(setGuruNotes)
+      .catch(() => setGuruNotes([]));
   }, [tag]);
 
   return (
@@ -54,6 +61,9 @@ export default function Equipment360Page() {
             ← All equipment
           </Link>
           <div className="flex gap-4">
+            <Link href="/guru" className="text-sm text-slate-500 hover:text-slate-800">
+              Guru Mode
+            </Link>
             <Link href="/permits/new" className="text-sm text-slate-500 hover:text-slate-800">
               Raise a permit
             </Link>
@@ -73,6 +83,7 @@ export default function Equipment360Page() {
           <div className="mt-4 space-y-8">
             <Header summary={data.summary} health={data.health} />
             <Prediction predictions={predictions} />
+            <TribalKnowledge notes={guruNotes} />
             <Timeline items={data.timeline} />
             <Documents documents={data.documents} />
             <People people={data.people} />
@@ -199,6 +210,28 @@ function PredictionCard({ p }: { p: PredictionResult }) {
         </details>
       </div>
     </div>
+  );
+}
+
+function TribalKnowledge({ notes }: { notes: GuruNote[] }) {
+  if (notes.length === 0) return null;
+  return (
+    <section>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        🧠 Tribal knowledge <span className="text-slate-300">({notes.length})</span>
+      </h2>
+      <div className="space-y-3">
+        {notes.map((n) => (
+          <div key={n.note_id} className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+            <div className="text-sm font-semibold text-violet-900">{n.engineer_name}</div>
+            <p className="mt-1 text-sm text-slate-700">{n.summary || n.symptom}</p>
+            {n.recommended_action && (
+              <p className="mt-1 text-xs text-slate-500">Action: {n.recommended_action}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
