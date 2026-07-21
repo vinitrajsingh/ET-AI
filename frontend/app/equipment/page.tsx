@@ -22,9 +22,17 @@ export default function EquipmentGridPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 px-5 py-10">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Equipment</h1>
-          <p className="text-sm text-slate-500">Bharat Petrochem Unit-2 — asset register</p>
+        <header className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Equipment</h1>
+            <p className="text-sm text-slate-500">Bharat Petrochem Unit-2 — asset register</p>
+          </div>
+          <Link
+            href="/copilot"
+            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
+          >
+            Ask Copilot
+          </Link>
         </header>
 
         {error && <ErrorBox message={error} />}

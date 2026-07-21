@@ -49,9 +49,14 @@ export default function Equipment360Page() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 px-5 py-8">
       <div className="mx-auto max-w-4xl">
-        <Link href="/equipment" className="text-sm text-slate-500 hover:text-slate-800">
-          ← All equipment
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/equipment" className="text-sm text-slate-500 hover:text-slate-800">
+            ← All equipment
+          </Link>
+          <Link href="/copilot" className="text-sm text-slate-500 hover:text-slate-800">
+            Ask Copilot →
+          </Link>
+        </div>
 
         {error?.notFound && <Notice title={`No equipment "${tag}"`} body="This tag does not exist in the graph." />}
         {error && !error.notFound && (

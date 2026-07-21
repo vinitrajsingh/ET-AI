@@ -98,6 +98,29 @@ export interface PredictionResult {
   supporting_signals: string[];
 }
 
+export interface CopilotCitation {
+  type: "workorder" | "incident" | "document" | "prediction";
+  ref: string;
+  title: string | null;
+  snippet: string | null;
+  equipment_tag: string | null;
+}
+
+export interface CopilotAnswer {
+  answer: string;
+  citations: CopilotCitation[];
+  resolved_equipment: string | null;
+  context_used: {
+    graph_facts?: string | null;
+    passages?: { label: string; doc_id: string | null; source: string | null; snippet: string | null }[];
+  };
+}
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -106,6 +129,18 @@ export class ApiError extends Error {
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new ApiError(res.status, `Request failed (${res.status}) for ${path}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) {
     throw new ApiError(res.status, `Request failed (${res.status}) for ${path}`);
   }
@@ -122,6 +157,10 @@ export function fetchEquipment360(tag: string): Promise<Equipment360> {
 
 export function fetchEquipmentPrediction(tag: string): Promise<PredictionResult[]> {
   return getJson<PredictionResult[]>(`/equipment/${encodeURIComponent(tag)}/prediction`);
+}
+
+export function askCopilot(query: string, history: ChatTurn[]): Promise<CopilotAnswer> {
+  return postJson<CopilotAnswer>("/copilot/ask", { query, history });
 }
 
 // Small display helper shared by both pages: "2021-02-12" -> "12 Feb 2021".
