@@ -23,6 +23,7 @@ from app.ingestion.entity_extraction import (
     extract_entities,
     work_orders_from_table,
 )
+from app.ingestion.asset_register import link_asset_register
 from app.ingestion.extractors.base import ExtractedContent
 from app.ingestion.graph_merge import merge_document_graph
 from app.ingestion.relationship_extraction import build_relationships
@@ -54,6 +55,7 @@ class DirectorySummary(BaseModel):
     files_failed: int = 0
     nodes_created: int = 0
     chunks_embedded: int = 0
+    asset_links: dict = Field(default_factory=dict)  # curated manual/regulation edges
     per_file: list[IngestSummary] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
@@ -109,6 +111,14 @@ def ingest_directory(root: str | Path | None = None, embed: bool = True) -> Dire
         summary.files_ingested += 1
         summary.nodes_created += result.nodes_created
         summary.chunks_embedded += result.chunks_embedded
+
+    # Once every document node exists, apply the curated equipment<->manual/regulation
+    # links that the documents themselves can't express.
+    try:
+        summary.asset_links = link_asset_register()
+    except Exception as exc:
+        logger.exception("Asset-register linking failed")
+        summary.errors.append(f"asset_register: {exc}")
 
     return summary
 

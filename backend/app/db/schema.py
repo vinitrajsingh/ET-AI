@@ -38,6 +38,11 @@ class Rel(str, Enum):
     MENTIONS = "MENTIONS"
     WORKED_ON = "WORKED_ON"
     HAS_FAILURE_MODE = "HAS_FAILURE_MODE"
+    # Curated links from the asset register (see app/ingestion/asset_register.py):
+    # they tie an asset to the specific manual/regulation PDF that applies to it,
+    # which generic real documents never state in their own text.
+    HAS_MANUAL = "HAS_MANUAL"
+    GOVERNED_BY = "GOVERNED_BY"
 
 
 # (start_label, REL, end_label). Kept as data so we can document and, if needed,
@@ -51,6 +56,8 @@ RELATIONSHIPS: list[tuple[Node, Rel, Node]] = [
     (Node.DOCUMENT, Rel.MENTIONS, Node.EQUIPMENT),
     (Node.PERSON, Rel.WORKED_ON, Node.EQUIPMENT),
     (Node.EQUIPMENT, Rel.HAS_FAILURE_MODE, Node.FAILURE_MODE),
+    (Node.EQUIPMENT, Rel.HAS_MANUAL, Node.DOCUMENT),
+    (Node.EQUIPMENT, Rel.GOVERNED_BY, Node.DOCUMENT),
 ]
 
 

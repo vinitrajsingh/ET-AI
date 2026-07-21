@@ -124,6 +124,25 @@ MATCH (e:Equipment {tag:'T-205'})-[:HAS_INCIDENT]->(i:Incident) RETURN e.tag, i.
 curl http://localhost:6333/collections/sanjeevani_chunks   # points_count = chunks stored
 ```
 
+### Verify the whole graph at once
+```bash
+python -m scripts.verify_graph      # runs a set of read-only checks and prints them
+```
+Raw Cypher for the Neo4j Browser is in `scripts/verify.cypher`.
+
+### Asset register (manual / regulation links)
+Generic OEM manuals and OISD/Factory Act PDFs never name plant tags, so they can't
+auto-link to equipment. `data/asset_register.json` declares which manual and which
+regulations apply to each asset, and the connector MERGEs those edges:
+```
+Equipment -[:HAS_MANUAL]->  Document   (e.g. P-101  -> Grundfos manual)
+Equipment -[:GOVERNED_BY]-> Document   (e.g. T-205  -> OISD-STD-105/106/116)
+```
+`POST /ingest/bulk` applies it automatically after ingestion. To (re)apply on its own:
+```bash
+python -c "from app.ingestion.asset_register import link_asset_register; print(link_asset_register())"
+```
+
 ### Tests
 ```bash
 # offline (no DB / no API cost): extractors + table entity extraction
@@ -142,6 +161,6 @@ pytest -q
   is optional. Whisper is only needed later (Guru Mode).
 - P&ID tags come reliably from the drawing **filename**; the vision model (gpt-4o)
   enriches the description when `USE_PID_VISION=true`.
-- Large real regulation/manual/incident PDFs contain no plant tags, so they become
-  searchable `Document` nodes + chunks rather than linking to specific equipment.
-  Reliable equipment linkage comes from the work-order sheet and P&IDs.
+- Large real regulation/manual/incident PDFs contain no plant tags. Direct entity
+  linkage still comes from the work-order sheet and P&IDs; the **asset register**
+  (above) supplies the curated manual/regulation-to-equipment edges on top.

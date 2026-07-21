@@ -1,0 +1,15 @@
+{
+  "_comment": "Curated asset register for Bharat Petrochem Unit-2. Ties each equipment tag to the OEM manual and regulation PDFs that apply to it. Values are Document doc_ids (the source filename without extension). A real plant maintains this mapping; generic manuals and OISD/Factory Act PDFs never name specific plant tags themselves.",
+  "HAS_MANUAL": {
+    "P-101": ["manual-pump-grundfos"],
+    "C-201": ["manual-compressor-atlascopco"],
+    "B-7": ["manual-boiler-forbesmarshall"]
+  },
+  "GOVERNED_BY": {
+    "P-101": ["OISD-STD-105"],
+    "C-201": ["OISD-STD-105", "OISD-STD-106"],
+    "T-205": ["OISD-STD-105", "OISD-STD-106", "OISD-STD-116"],
+    "HX-301": ["OISD-STD-106"],
+    "B-7": ["OISD-STD-105", "OISD-STD-106", "Factories-Act-1948"]
+  }
+}
