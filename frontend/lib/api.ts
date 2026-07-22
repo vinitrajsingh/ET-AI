@@ -326,6 +326,62 @@ export const COMPLIANCE_STATUS_LABEL: Record<ComplianceStatus, string> = {
   missing_evidence: "No record",
 };
 
+// --- Audit package ---
+
+export interface AuditPreview {
+  cover: { plant_name: string; scope: string; generated_at: string; reference_date: string };
+  summary: Record<string, number>;
+  equipment: unknown[];
+  compliance: unknown[];
+  incidents: { id: string; equipment_tag: string; date: string | null; description: string | null }[];
+  permits: {
+    permit_id: string;
+    permit_type: string;
+    equipment_tag: string;
+    acknowledged: { title: string; severity: string; cited: string | null }[];
+  }[];
+  maintenance: unknown[];
+  predictions: unknown[];
+}
+
+export function fetchAuditPreview(scope: string): Promise<AuditPreview> {
+  return getJson<AuditPreview>(`/audit/preview?scope=${encodeURIComponent(scope)}`);
+}
+
+export function auditPackageUrl(scope: string): string {
+  return `${API_BASE}/audit/package?scope=${encodeURIComponent(scope)}`;
+}
+
+// --- Work-order drafts ---
+
+export interface WorkOrderDraft {
+  draft_id: string;
+  equipment_tag: string;
+  failure_type: string;
+  task: string;
+  trade: string | null;
+  priority: string | null;
+  parts_suggested: string | null;
+  target_date: string | null;
+  justification: {
+    prediction?: string;
+    risk_level?: string;
+    confidence?: number;
+    evidence_work_orders?: string[];
+    predicted_window?: (string | null)[];
+  };
+  status: string;
+  approved_wo_id: string | null;
+}
+
+export function createWorkOrderDraft(equipment_tag: string, failure_type: string): Promise<WorkOrderDraft> {
+  return postJson<WorkOrderDraft>("/workorders/draft", { equipment_tag, failure_type });
+}
+
+export function approveWorkOrderDraft(draftId: string): Promise<WorkOrderDraft> {
+  return postJson<WorkOrderDraft>(`/workorders/drafts/${draftId}/approve`, {});
+}
+
 // Small display helper shared by both pages: "2021-02-12" -> "12 Feb 2021".
 export function formatDate(iso: string | null): string {
   if (!iso) return "-";

@@ -69,9 +69,14 @@ def _reference_date() -> date:
     return date.fromisoformat(settings.PREDICTION_REFERENCE_DATE)
 
 
-def evaluate_equipment_compliance(tag: str) -> list[ComplianceFinding]:
-    """Run every applicable rule against one asset's graph state and work orders."""
-    bio = get_equipment_360(tag)
+def evaluate_equipment_compliance(tag: str, bio: Equipment360Response | None = None) -> list[ComplianceFinding]:
+    """
+    Run every applicable rule against one asset's graph state and work orders.
+    A caller that already has the asset's 360 (like the audit builder) can pass it
+    in to avoid re-querying the graph.
+    """
+    if bio is None:
+        bio = get_equipment_360(tag)
     if bio is None:
         return []
 

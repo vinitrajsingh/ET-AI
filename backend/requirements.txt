@@ -38,6 +38,9 @@ pandas==2.2.3                     # tabular normalization
 # ffmpeg, Guru Mode still works via the typed-transcript fallback.
 openai-whisper==20240930          # local Whisper transcription (needs ffmpeg)
 
+# PDF (audit package)
+reportlab==4.2.5                  # audit-package PDF rendering
+
 # Tests
 pytest==8.3.4
 httpx==0.28.1                     # FastAPI TestClient dependency

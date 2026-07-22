@@ -18,8 +18,20 @@ from app.config import settings
 from app.db.neo4j_client import close_driver
 from app.db.qdrant_client import ensure_collection
 from app.db.schema import setup_constraints
-from app.routers import compliance, copilot, equipment, guru, health, ingestion, permits, prediction
+from app.routers import (
+    audit,
+    compliance,
+    copilot,
+    equipment,
+    guru,
+    health,
+    ingestion,
+    permits,
+    prediction,
+    workorders,
+)
 from app.services.permit_service import init_permit_storage
+from app.services.workorder_draft_service import init_workorder_storage
 
 
 @asynccontextmanager
@@ -37,8 +49,9 @@ async def lifespan(app: FastAPI):
         print(f"[startup] Neo4j constraints not applied: {exc}")
     try:
         init_permit_storage()
+        init_workorder_storage()
     except Exception as exc:
-        print(f"[startup] Permit table not ready: {exc}")
+        print(f"[startup] Postgres tables not ready: {exc}")
     yield
     # Shutdown: release the Neo4j connection pool.
     close_driver()
@@ -63,3 +76,5 @@ app.include_router(copilot.router)
 app.include_router(permits.router)
 app.include_router(guru.router)
 app.include_router(compliance.router)
+app.include_router(audit.router)
+app.include_router(workorders.router)

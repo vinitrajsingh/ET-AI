@@ -21,6 +21,9 @@ import {
   PersonWork,
   PredictionResult,
   TimelineItem,
+  WorkOrderDraft,
+  approveWorkOrderDraft,
+  createWorkOrderDraft,
   fetchEquipment360,
   fetchEquipmentCompliance,
   fetchEquipmentPrediction,
@@ -37,6 +40,12 @@ export default function Equipment360Page() {
   const [guruNotes, setGuruNotes] = useState<GuruNote[]>([]);
   const [compliance, setCompliance] = useState<ComplianceFinding[]>([]);
   const [error, setError] = useState<{ notFound: boolean; message: string } | null>(null);
+
+  // Re-fetch just the biography (used after a work-order draft is approved, so the
+  // new work order shows up on the timeline immediately).
+  const reload360 = () => {
+    fetchEquipment360(tag).then(setData).catch(() => {});
+  };
 
   useEffect(() => {
     setData(null);
@@ -94,7 +103,7 @@ export default function Equipment360Page() {
         {data && (
           <div className="mt-4 space-y-8">
             <Header summary={data.summary} health={data.health} />
-            <Prediction predictions={predictions} />
+            <Prediction predictions={predictions} onWorkOrderCreated={reload360} />
             <Compliance findings={compliance} />
             <TribalKnowledge notes={guruNotes} />
             <Timeline items={data.timeline} />
@@ -139,7 +148,13 @@ const RISK_STYLES: Record<string, { band: string; text: string; ring: string }> 
   Low: { band: "bg-emerald-500", text: "text-emerald-700", ring: "border-emerald-300" },
 };
 
-function Prediction({ predictions }: { predictions: PredictionResult[] | null }) {
+function Prediction({
+  predictions,
+  onWorkOrderCreated,
+}: {
+  predictions: PredictionResult[] | null;
+  onWorkOrderCreated: () => void;
+}) {
   if (predictions === null) {
     return <div className="text-sm text-slate-400">Analysing maintenance history...</div>;
   }
@@ -157,14 +172,38 @@ function Prediction({ predictions }: { predictions: PredictionResult[] | null })
   return (
     <section className="space-y-4">
       {predicted.map((p) => (
-        <PredictionCard key={p.failure_type} p={p} />
+        <PredictionCard key={p.failure_type} p={p} onWorkOrderCreated={onWorkOrderCreated} />
       ))}
     </section>
   );
 }
 
-function PredictionCard({ p }: { p: PredictionResult }) {
+function PredictionCard({ p, onWorkOrderCreated }: { p: PredictionResult; onWorkOrderCreated: () => void }) {
   const style = RISK_STYLES[p.risk_level ?? "Low"] ?? RISK_STYLES.Low;
+  const [draft, setDraft] = useState<WorkOrderDraft | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [createdWo, setCreatedWo] = useState<string | null>(null);
+
+  const makeDraft = async () => {
+    setBusy(true);
+    try {
+      setDraft(await createWorkOrderDraft(p.equipment_tag, p.failure_type));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approve = async () => {
+    if (!draft) return;
+    setBusy(true);
+    try {
+      const approved = await approveWorkOrderDraft(draft.draft_id);
+      setCreatedWo(approved.approved_wo_id);
+      onWorkOrderCreated(); // refresh the timeline so the new work order shows up
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className={`overflow-hidden rounded-xl border bg-white shadow-sm ${style.ring}`}>
@@ -221,6 +260,41 @@ function PredictionCard({ p }: { p: PredictionResult }) {
             </div>
           )}
         </details>
+
+        {/* Close the loop: turn the prediction into a work order a human approves. */}
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          {createdWo ? (
+            <p className="text-sm font-medium text-emerald-700">
+              Work order {createdWo} created and added to the timeline below.
+            </p>
+          ) : !draft ? (
+            <button
+              onClick={makeDraft}
+              disabled={busy}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-500 disabled:opacity-40"
+            >
+              {busy ? "Drafting..." : "Create work order draft"}
+            </button>
+          ) : (
+            <div className="rounded-lg bg-slate-50 p-3">
+              <div className="text-sm font-semibold text-slate-900">Draft work order</div>
+              <dl className="mt-1 space-y-0.5 text-xs text-slate-600">
+                <div><span className="font-semibold">Task:</span> {draft.task}</div>
+                <div><span className="font-semibold">Priority:</span> {draft.priority} · <span className="font-semibold">Trade:</span> {draft.trade ?? "-"}</div>
+                <div><span className="font-semibold">Target:</span> {formatDate(draft.target_date)}</div>
+                {draft.parts_suggested && <div><span className="font-semibold">Parts:</span> {draft.parts_suggested}</div>}
+                <div><span className="font-semibold">Justification:</span> predicted from {draft.justification.evidence_work_orders?.join(", ")}</div>
+              </dl>
+              <button
+                onClick={approve}
+                disabled={busy}
+                className="mt-2 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+              >
+                {busy ? "Approving..." : "Approve & create work order"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

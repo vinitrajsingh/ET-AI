@@ -29,6 +29,12 @@ export default function EquipmentGridPage() {
           </div>
           <div className="flex gap-2">
             <Link
+              href="/audit"
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
+            >
+              Audit
+            </Link>
+            <Link
               href="/compliance"
               className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:border-slate-500"
             >
