@@ -9,7 +9,7 @@ slots into the same structure later).
 
 from pydantic import BaseModel, Field
 
-from app.db.neo4j_client import get_driver
+from app.db.neo4j_client import get_driver, run_in_session
 
 # Relationship-type -> human label for the documents section. Kept here so the
 # backend owns the vocabulary and the frontend just renders it.
@@ -89,8 +89,10 @@ def list_equipment() -> list[EquipmentListItem]:
                count(DISTINCT w) AS work_orders, count(DISTINCT i) AS incidents
         ORDER BY e.tag
     """
-    with get_driver().session() as session:
+    def _work(session):
         return [EquipmentListItem(**r.data()) for r in session.run(cypher)]
+
+    return run_in_session(_work)
 
 
 def get_equipment_summary(tag: str) -> EquipmentSummary | None:

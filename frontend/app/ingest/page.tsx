@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 
 import { API_BASE } from "@/lib/api";
-import { Button, Card, Section, StatusPill } from "@/components/ui";
+import { Button, Card, FileField, Section, StatusPill } from "@/components/ui";
 
 interface Health {
   status?: string;
@@ -86,14 +86,14 @@ export default function IngestPage() {
 
         <Section title="Upload a document">
           <Card className="space-y-3 p-4">
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-sm" />
+            <FileField label="Choose file" file={file} onChange={setFile} />
             <Button onClick={upload} disabled={!file || busy !== null}>{busy === "upload" ? "Uploading..." : "Upload and ingest"}</Button>
           </Card>
         </Section>
 
         <Section title="Seed the corpus">
           <Card className="space-y-3 p-4">
-            <p className="text-sm text-muted">Ingest every document in the demo corpus in one pass.</p>
+            <p className="text-sm text-muted">Ingest every document in the corpus in one pass.</p>
             <Button onClick={seed} disabled={busy !== null}>{busy === "seed" ? "Seeding, this takes a moment..." : "Seed corpus"}</Button>
           </Card>
         </Section>

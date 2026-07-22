@@ -106,7 +106,7 @@ export function Button({
   children,
 }: ButtonProps) {
   const sizeCls = size === "lg" ? "min-h-[48px] px-5 text-base" : "min-h-[44px] px-4 text-sm";
-  const cls = `inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${VARIANT[variant]} ${sizeCls} ${className}`;
+  const cls = `inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45 ${VARIANT[variant]} ${sizeCls} ${className}`;
   if (href && !disabled) {
     return (
       <Link href={href} className={cls}>
@@ -118,6 +118,41 @@ export function Button({
     <button type={type} onClick={onClick} disabled={disabled} className={cls}>
       {children}
     </button>
+  );
+}
+
+// --- File field (styled button, since a raw <input type="file"> ignores our
+// design system and shows a plain OS control with no pointer cursor) ---
+
+export function FileField({
+  label,
+  accept,
+  file,
+  onChange,
+}: {
+  label: string;
+  accept?: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  const inputId = `file-${label.replace(/\W+/g, "-").toLowerCase()}`;
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <label
+        htmlFor={inputId}
+        className="inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition-colors duration-150 hover:bg-bg"
+      >
+        {label}
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept={accept}
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        className="sr-only"
+      />
+      <span className="text-sm text-muted">{file ? file.name : "No file chosen"}</span>
+    </div>
   );
 }
 

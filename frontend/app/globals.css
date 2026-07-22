@@ -30,8 +30,9 @@
   --color-info: #12507a;
   --color-info-soft: #e9f0f6;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  /* System stack — avoids next/font/google network hang on first compile */
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Consolas", monospace;
 }
 
 html {

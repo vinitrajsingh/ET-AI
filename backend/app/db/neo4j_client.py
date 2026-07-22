@@ -13,13 +13,23 @@ Usage:
         session.run("MATCH (n) RETURN n LIMIT 1")
 """
 
+from collections.abc import Callable
+from typing import TypeVar
+
 import certifi
 import neo4j
 from neo4j import Driver, GraphDatabase
+from neo4j.exceptions import ServiceUnavailable, SessionExpired
 
 from app.config import settings
 
 _driver: Driver | None = None
+
+T = TypeVar("T")
+
+# Aura free-tier and flaky networks can drop pooled connections; these mean
+# "reset the driver and try once more" rather than a permanent outage.
+_TRANSIENT = (SessionExpired, ServiceUnavailable)
 
 
 def get_driver() -> Driver:
@@ -28,6 +38,28 @@ def get_driver() -> Driver:
     if _driver is None:
         _driver = _build_driver()
     return _driver
+
+
+def run_in_session(work: Callable[[neo4j.Session], T]) -> T:
+    """
+    Open a short-lived session, run `work(session)`, and return its result.
+
+    If the pooled connection is dead (Aura idle timeout / routing blip), close
+    the driver and retry once with a fresh pool so a single flake does not
+    surface as a 500 to the frontend.
+    """
+    last: Exception | None = None
+    for attempt in range(2):
+        try:
+            with get_driver().session() as session:
+                return work(session)
+        except _TRANSIENT as exc:
+            last = exc
+            close_driver()
+            if attempt == 1:
+                raise
+    assert last is not None
+    raise last
 
 
 def _build_driver() -> Driver:
@@ -64,9 +96,11 @@ def ping_neo4j() -> bool:
     Returns True on success; raises the underlying exception on failure so the
     /health endpoint can report the real reason.
     """
-    with get_driver().session() as session:
+    def _ping(session: neo4j.Session) -> bool:
         result = session.run("RETURN 1 AS ok")
         return result.single()["ok"] == 1
+
+    return run_in_session(_ping)
 
 
 def close_driver() -> None:

@@ -10,7 +10,7 @@ import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { EquipmentListItem, GuruNote, approveGuruNote, createGuruNote, fetchEquipmentList, fetchGuruNotes } from "@/lib/api";
-import { Button, Card, Section, StatusPill, Tag } from "@/components/ui";
+import { Button, Card, FileField, Section, StatusPill, Tag } from "@/components/ui";
 
 export default function GuruPage() {
   const [assets, setAssets] = useState<EquipmentListItem[]>([]);
@@ -74,7 +74,7 @@ export default function GuruPage() {
           </div>
 
           <Field label="Voice note (optional, Hindi or English)">
-            <input type="file" accept="audio/*" onChange={(e) => setAudio(e.target.files?.[0] ?? null)} className="text-sm" />
+            <FileField label="Choose audio file" accept="audio/*" file={audio} onChange={setAudio} />
           </Field>
 
           <Field label="Or type the note">

@@ -13,12 +13,15 @@ import { Card, ErrorNotice, SkeletonCard, Tag } from "@/components/ui";
 export default function EquipmentGridPage() {
   const [items, setItems] = useState<EquipmentListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    setItems(null);
+    setError(null);
     fetchEquipmentList()
       .then(setItems)
       .catch((e) => setError(String(e)));
-  }, []);
+  }, [reloadKey]);
 
   return (
     <div className="px-4 py-6 sm:px-6">
@@ -27,11 +30,18 @@ export default function EquipmentGridPage() {
         <p className="mt-1 text-muted">Bharat Petrochem Unit-2 asset register</p>
 
         {error && (
-          <div className="mt-6">
+          <div className="mt-6 space-y-3">
             <ErrorNotice
-              title="Could not reach the API"
-              detail={`Is the backend running on ${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}? ${error}`}
+              title="Could not load equipment"
+              detail={`Backend may be restarting or Neo4j briefly unavailable. ${error}`}
             />
+            <button
+              type="button"
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="min-h-[40px] rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-primary-hover"
+            >
+              Retry
+            </button>
           </div>
         )}
 

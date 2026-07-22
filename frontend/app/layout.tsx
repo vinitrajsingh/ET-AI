@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 import { RoleProvider } from "@/components/RoleContext";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
 
 export const metadata: Metadata = {
   title: "SANJEEVANI",
@@ -14,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${plexMono.variable} h-full`}>
+    <html lang="en" className="h-full">
       <body className="min-h-full">
         <RoleProvider>
           <AppShell>{children}</AppShell>
