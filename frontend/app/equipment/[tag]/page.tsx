@@ -1,19 +1,18 @@
 "use client";
 
-// Equipment 360: one asset's whole life on a single screen. Header stats, a
-// merged work-order + incident timeline (colour-coded, incidents flagged),
-// documents grouped by how they relate to the asset, and the people who worked
-// on it. Everything is wired to the real API; nothing is hardcoded.
+// Equipment 360: one asset's whole life on a single screen. Header identity and
+// health, then prediction, compliance, tribal knowledge, timeline, documents, and
+// people. Everything is wired to the real API. A prediction can be turned into a
+// work-order draft that, once approved, appears highlighted in the timeline.
 
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
   ApiError,
-  COMPLIANCE_STATUS_LABEL,
   ComplianceFinding,
-  ComplianceStatus,
   DocumentLink,
   Equipment360,
   GuruNote,
@@ -30,6 +29,8 @@ import {
   fetchGuruNotes,
   formatDate,
 } from "@/lib/api";
+import { complianceStatus, riskStatus } from "@/lib/status";
+import { Button, Card, Chip, EmptyState, ErrorNotice, Modal, Section, Skeleton, StatusPill, Tag } from "@/components/ui";
 
 export default function Equipment360Page() {
   const params = useParams<{ tag: string }>();
@@ -40,11 +41,15 @@ export default function Equipment360Page() {
   const [guruNotes, setGuruNotes] = useState<GuruNote[]>([]);
   const [compliance, setCompliance] = useState<ComplianceFinding[]>([]);
   const [error, setError] = useState<{ notFound: boolean; message: string } | null>(null);
+  const [highlightWo, setHighlightWo] = useState<string | null>(null);
 
-  // Re-fetch just the biography (used after a work-order draft is approved, so the
-  // new work order shows up on the timeline immediately).
-  const reload360 = () => {
-    fetchEquipment360(tag).then(setData).catch(() => {});
+  const reload360 = (highlight?: string) => {
+    fetchEquipment360(tag)
+      .then((d) => {
+        setData(d);
+        if (highlight) setHighlightWo(highlight);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -53,134 +58,114 @@ export default function Equipment360Page() {
     setGuruNotes([]);
     setCompliance([]);
     setError(null);
+    setHighlightWo(null);
     fetchEquipment360(tag)
       .then(setData)
-      .catch((e) =>
-        setError({ notFound: e instanceof ApiError && e.status === 404, message: String(e) })
-      );
-    // These load independently; a failure just hides that section rather than
-    // breaking the whole page.
-    fetchEquipmentPrediction(tag)
-      .then(setPredictions)
-      .catch(() => setPredictions([]));
-    fetchGuruNotes(tag)
-      .then(setGuruNotes)
-      .catch(() => setGuruNotes([]));
-    fetchEquipmentCompliance(tag)
-      .then(setCompliance)
-      .catch(() => setCompliance([]));
+      .catch((e) => setError({ notFound: e instanceof ApiError && e.status === 404, message: String(e) }));
+    fetchEquipmentPrediction(tag).then(setPredictions).catch(() => setPredictions([]));
+    fetchGuruNotes(tag).then(setGuruNotes).catch(() => setGuruNotes([]));
+    fetchEquipmentCompliance(tag).then(setCompliance).catch(() => setCompliance([]));
   }, [tag]);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 px-5 py-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="flex items-center justify-between">
-          <Link href="/equipment" className="text-sm text-slate-500 hover:text-slate-800">
-            ← All equipment
-          </Link>
-          <div className="flex gap-4">
-            <Link href="/compliance" className="text-sm text-slate-500 hover:text-slate-800">
-              Compliance
-            </Link>
-            <Link href="/guru" className="text-sm text-slate-500 hover:text-slate-800">
-              Guru Mode
-            </Link>
-            <Link href="/permits/new" className="text-sm text-slate-500 hover:text-slate-800">
-              Raise a permit
-            </Link>
-            <Link href="/copilot" className="text-sm text-slate-500 hover:text-slate-800">
-              Ask Copilot →
-            </Link>
-          </div>
-        </div>
+    <div className="px-4 py-4 sm:px-6">
+      <div className="mx-auto max-w-3xl">
+        <Link href="/equipment" className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-muted hover:text-ink">
+          <ChevronLeft size={18} /> All equipment
+        </Link>
 
-        {error?.notFound && <Notice title={`No equipment "${tag}"`} body="This tag does not exist in the graph." />}
-        {error && !error.notFound && (
-          <Notice title="Could not load this equipment" body={error.message} tone="error" />
-        )}
-        {!data && !error && <p className="mt-6 text-slate-500">Loading {tag}...</p>}
+        {error?.notFound && <div className="mt-4"><ErrorNotice title={`No equipment "${tag}"`} detail="This tag does not exist in the graph." /></div>}
+        {error && !error.notFound && <div className="mt-4"><ErrorNotice title="Could not load this equipment" detail={error.message} /></div>}
+        {!data && !error && <LoadingBody />}
 
         {data && (
-          <div className="mt-4 space-y-8">
+          <div className="mt-3 space-y-8">
             <Header summary={data.summary} health={data.health} />
-            <Prediction predictions={predictions} onWorkOrderCreated={reload360} />
+            <Prediction predictions={predictions} onWorkOrderCreated={(wo) => reload360(wo)} />
             <Compliance findings={compliance} />
             <TribalKnowledge notes={guruNotes} />
-            <Timeline items={data.timeline} />
+            <Timeline items={data.timeline} highlightWo={highlightWo} />
             <Documents documents={data.documents} />
             <People people={data.people} />
           </div>
         )}
       </div>
-    </main>
+    </div>
+  );
+}
+
+function LoadingBody() {
+  return (
+    <div className="mt-4 space-y-4">
+      <Skeleton className="h-8 w-40" />
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-32 w-full" />
+    </div>
   );
 }
 
 function Header({ summary, health }: { summary: Equipment360["summary"]; health: HealthSnapshot }) {
   return (
     <section>
-      <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="font-mono text-3xl font-bold">{summary.tag}</h1>
-        <span className="text-lg text-slate-700">{summary.name}</span>
-        {summary.type && (
-          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">{summary.type}</span>
-        )}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <Tag className="text-3xl font-bold">{summary.tag}</Tag>
+        <span className="text-lg text-muted">{summary.name}</span>
+        {summary.type && <Chip>{summary.type}</Chip>}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Chip label="Work orders" value={health.total_work_orders} />
-        <Chip label="Open" value={health.open_work_orders} tone={health.open_work_orders > 0 ? "amber" : "plain"} />
-        <Chip label="Incidents" value={health.incident_count} tone={health.incident_count > 0 ? "red" : "plain"} />
-        <Chip label="Last activity" value={formatDate(health.last_work_order_date)} />
+        <StatChip label="Work orders" value={health.total_work_orders} />
+        <StatChip label="Open" value={health.open_work_orders} tone={health.open_work_orders > 0 ? "caution" : "plain"} />
+        <StatChip label="Incidents" value={health.incident_count} tone={health.incident_count > 0 ? "critical" : "plain"} />
+        <StatChip label="Last activity" value={formatDate(health.last_work_order_date)} />
       </div>
-      <div className="mt-2 text-xs text-slate-500">
-        {health.corrective_count} corrective · {health.preventive_count} preventive
-      </div>
+      <p className="mt-2 text-sm text-muted">
+        {health.corrective_count} corrective, {health.preventive_count} preventive
+      </p>
     </section>
   );
 }
 
-// Risk colour is the loudest thing on the page, so it maps straight to severity.
-const RISK_STYLES: Record<string, { band: string; text: string; ring: string }> = {
-  High: { band: "bg-red-600", text: "text-red-700", ring: "border-red-300" },
-  Elevated: { band: "bg-orange-500", text: "text-orange-700", ring: "border-orange-300" },
-  Watch: { band: "bg-amber-400", text: "text-amber-700", ring: "border-amber-300" },
-  Low: { band: "bg-emerald-500", text: "text-emerald-700", ring: "border-emerald-300" },
-};
+const STAT_TONE = {
+  plain: "bg-surface border-line text-ink",
+  caution: "bg-caution-soft border-caution/25 text-caution",
+  critical: "bg-critical-soft border-critical/25 text-critical",
+} as const;
 
-function Prediction({
-  predictions,
-  onWorkOrderCreated,
-}: {
-  predictions: PredictionResult[] | null;
-  onWorkOrderCreated: () => void;
-}) {
-  if (predictions === null) {
-    return <div className="text-sm text-slate-400">Analysing maintenance history...</div>;
-  }
+function StatChip({ label, value, tone = "plain" }: { label: string; value: string | number; tone?: keyof typeof STAT_TONE }) {
+  return (
+    <div className={`rounded-lg border p-3 ${STAT_TONE[tone]}`}>
+      <div className="text-lg font-semibold">{value}</div>
+      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
+    </div>
+  );
+}
 
+// --- Prediction ---
+
+function Prediction({ predictions, onWorkOrderCreated }: { predictions: PredictionResult[] | null; onWorkOrderCreated: (wo: string) => void }) {
+  if (predictions === null) return <Skeleton className="h-28 w-full" />;
   const predicted = predictions.filter((p) => p.status === "predicted");
   if (predicted.length === 0) {
-    // Honest, not a fake warning: nothing recurring to forecast.
     return (
-      <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-line bg-surface px-4 py-3 text-sm text-muted">
         No recurring failure pattern detected yet.
       </div>
     );
   }
-
   return (
-    <section className="space-y-4">
+    <div className="space-y-4">
       {predicted.map((p) => (
         <PredictionCard key={p.failure_type} p={p} onWorkOrderCreated={onWorkOrderCreated} />
       ))}
-    </section>
+    </div>
   );
 }
 
-function PredictionCard({ p, onWorkOrderCreated }: { p: PredictionResult; onWorkOrderCreated: () => void }) {
-  const style = RISK_STYLES[p.risk_level ?? "Low"] ?? RISK_STYLES.Low;
+function PredictionCard({ p, onWorkOrderCreated }: { p: PredictionResult; onWorkOrderCreated: (wo: string) => void }) {
+  const risk = riskStatus(p.risk_level);
   const [draft, setDraft] = useState<WorkOrderDraft | null>(null);
+  const [showDraft, setShowDraft] = useState(false);
   const [busy, setBusy] = useState(false);
   const [createdWo, setCreatedWo] = useState<string | null>(null);
 
@@ -188,6 +173,7 @@ function PredictionCard({ p, onWorkOrderCreated }: { p: PredictionResult; onWork
     setBusy(true);
     try {
       setDraft(await createWorkOrderDraft(p.equipment_tag, p.failure_type));
+      setShowDraft(true);
     } finally {
       setBusy(false);
     }
@@ -199,254 +185,182 @@ function PredictionCard({ p, onWorkOrderCreated }: { p: PredictionResult; onWork
     try {
       const approved = await approveWorkOrderDraft(draft.draft_id);
       setCreatedWo(approved.approved_wo_id);
-      onWorkOrderCreated(); // refresh the timeline so the new work order shows up
+      setShowDraft(false);
+      if (approved.approved_wo_id) onWorkOrderCreated(approved.approved_wo_id);
     } finally {
       setBusy(false);
     }
   };
 
+  const accent = risk.token === "critical" ? "border-critical" : risk.token === "caution" ? "border-caution" : "border-good";
+
   return (
-    <div className={`overflow-hidden rounded-xl border bg-white shadow-sm ${style.ring}`}>
-      <div className={`flex items-center justify-between gap-2 px-4 py-2 text-white ${style.band}`}>
-        <span className="text-sm font-semibold uppercase tracking-wide">⚡ Prediction · {p.failure_label}</span>
+    <Card className={`overflow-hidden border-l-4 ${accent}`}>
+      <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Prediction: {p.failure_label}</h2>
         <div className="flex items-center gap-2">
-          {typeof p.confidence === "number" && (
-            <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">{p.confidence}% confidence</span>
-          )}
-          <span className="rounded-full bg-white/25 px-2 py-0.5 text-xs font-bold">{p.risk_level} risk</span>
+          {typeof p.confidence === "number" && <Chip>{p.confidence}% confidence</Chip>}
+          <StatusPill token={risk.token} label={risk.label} />
         </div>
       </div>
 
       <div className="p-4">
-        <p className="text-lg font-semibold text-slate-900">
-          Next {p.failure_label.toLowerCase()} projected around{" "}
-          <span className={style.text}>{formatDate(p.predicted_center)}</span>
-          {typeof p.days_until_center === "number" && (
-            <span className="text-slate-500"> ({p.days_until_center} days)</span>
-          )}
+        <p className="text-lg font-semibold">
+          Next {p.failure_label.toLowerCase()} expected around {formatDate(p.predicted_center)}
+          {typeof p.days_until_center === "number" && <span className="text-muted"> ({p.days_until_center} days)</span>}
         </p>
+        <p className="mt-2 rounded-lg bg-bg p-3 text-sm leading-relaxed text-ink">{p.explanation}</p>
 
-        {/* The plain-language "why", so the number is self-explaining on screen. */}
-        <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{p.explanation}</p>
-
-        <p className="mt-2 text-xs text-slate-500">
-          Expected window {formatDate(p.predicted_window_start)} to {formatDate(p.predicted_window_end)}. Recurs about
-          every {p.mean_interval_months} months; current cycle is {p.current_age_months} months old.
-        </p>
-
-        <details className="mt-3 rounded-lg bg-slate-50 p-3">
-          <summary className="cursor-pointer text-sm font-medium text-slate-700">
-            Evidence: {p.evidence.length} work orders
-          </summary>
+        <details className="mt-3 rounded-lg bg-bg p-3">
+          <summary className="cursor-pointer text-sm font-medium">Evidence: {p.evidence.length} work orders</summary>
           <ul className="mt-2 space-y-2">
             {p.evidence.map((e) => (
-              <li key={e.wo_id} className="border-l-2 border-slate-300 pl-3 text-sm">
-                <span className="font-mono text-xs text-slate-500">{e.wo_id}</span>{" "}
-                <span className="text-xs text-slate-400">{formatDate(e.date)}</span>
-                <p className="text-slate-700">{e.description}</p>
+              <li key={e.wo_id} className="border-l-2 border-line pl-3 text-sm">
+                <Tag className="text-xs text-muted">{e.wo_id}</Tag> <span className="text-xs text-muted">{formatDate(e.date)}</span>
+                <p className="text-ink">{e.description}</p>
               </li>
             ))}
           </ul>
-          {p.supporting_signals.length > 0 && (
-            <div className="mt-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Corroborating signals</div>
-              <ul className="mt-1 space-y-1">
-                {p.supporting_signals.map((s, i) => (
-                  <li key={i} className="text-xs text-slate-600">
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </details>
 
-        {/* Close the loop: turn the prediction into a work order a human approves. */}
-        <div className="mt-3 border-t border-slate-100 pt-3">
+        <div className="mt-4 border-t border-line pt-3">
           {createdWo ? (
-            <p className="text-sm font-medium text-emerald-700">
-              Work order {createdWo} created and added to the timeline below.
-            </p>
-          ) : !draft ? (
-            <button
-              onClick={makeDraft}
-              disabled={busy}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-500 disabled:opacity-40"
-            >
-              {busy ? "Drafting..." : "Create work order draft"}
-            </button>
+            <p className="text-sm font-medium text-good">Work order <Tag>{createdWo}</Tag> created and added to the timeline below.</p>
           ) : (
-            <div className="rounded-lg bg-slate-50 p-3">
-              <div className="text-sm font-semibold text-slate-900">Draft work order</div>
-              <dl className="mt-1 space-y-0.5 text-xs text-slate-600">
-                <div><span className="font-semibold">Task:</span> {draft.task}</div>
-                <div><span className="font-semibold">Priority:</span> {draft.priority} · <span className="font-semibold">Trade:</span> {draft.trade ?? "-"}</div>
-                <div><span className="font-semibold">Target:</span> {formatDate(draft.target_date)}</div>
-                {draft.parts_suggested && <div><span className="font-semibold">Parts:</span> {draft.parts_suggested}</div>}
-                <div><span className="font-semibold">Justification:</span> predicted from {draft.justification.evidence_work_orders?.join(", ")}</div>
-              </dl>
-              <button
-                onClick={approve}
-                disabled={busy}
-                className="mt-2 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-              >
-                {busy ? "Approving..." : "Approve & create work order"}
-              </button>
-            </div>
+            <Button variant="secondary" onClick={makeDraft} disabled={busy}>
+              {busy ? "Drafting..." : "Create work order draft"}
+            </Button>
           )}
         </div>
       </div>
+
+      {showDraft && draft && (
+        <Modal title="Draft work order" onClose={() => setShowDraft(false)}>
+          <dl className="space-y-2 text-sm">
+            <Row label="Equipment"><Tag>{draft.equipment_tag}</Tag></Row>
+            <Row label="Task">{draft.task}</Row>
+            <Row label="Priority">{draft.priority}</Row>
+            <Row label="Trade">{draft.trade ?? "-"}</Row>
+            <Row label="Target date">{formatDate(draft.target_date)}</Row>
+            {draft.parts_suggested && <Row label="Parts">{draft.parts_suggested}</Row>}
+            <Row label="Justification">Predicted from {draft.justification.evidence_work_orders?.join(", ")}</Row>
+          </dl>
+          <div className="mt-5 flex gap-3">
+            <Button onClick={approve} disabled={busy}>{busy ? "Approving..." : "Approve and create"}</Button>
+            <Button variant="secondary" onClick={() => setShowDraft(false)}>Cancel</Button>
+          </div>
+        </Modal>
+      )}
+    </Card>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="w-28 shrink-0 font-medium text-muted">{label}</dt>
+      <dd className="text-ink">{children}</dd>
     </div>
   );
 }
 
-const COMPLIANCE_PILL: Record<ComplianceStatus, string> = {
-  compliant: "bg-emerald-100 text-emerald-700",
-  due_soon: "bg-amber-100 text-amber-700",
-  overdue: "bg-red-100 text-red-700",
-  missing_evidence: "bg-red-100 text-red-700",
-};
+// --- Compliance ---
 
-const CATEGORY_TAG: Record<string, string> = {
-  Health: "bg-blue-100 text-blue-700",
-  Safety: "bg-orange-100 text-orange-700",
-  Environment: "bg-green-100 text-green-700",
+const CATEGORY_TONE: Record<string, string> = {
+  Health: "text-info bg-info-soft",
+  Safety: "text-caution bg-caution-soft",
+  Environment: "text-good bg-good-soft",
 };
-
-export function CompliancePill({ status }: { status: ComplianceStatus }) {
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${COMPLIANCE_PILL[status]}`}>
-      {COMPLIANCE_STATUS_LABEL[status]}
-    </span>
-  );
-}
 
 function Compliance({ findings }: { findings: ComplianceFinding[] }) {
   if (findings.length === 0) return null;
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Compliance <span className="text-slate-300">({findings.length})</span>
-      </h2>
+    <Section title="Compliance" count={findings.length}>
       <div className="space-y-3">
-        {findings.map((f) => (
-          <div key={f.rule_code} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <CompliancePill status={f.status} />
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_TAG[f.category]}`}>
-                {f.category}
-              </span>
-              <h3 className="text-sm font-semibold text-slate-900">{f.title}</h3>
-            </div>
-            <p className="mt-2 text-sm text-slate-700">{f.requires}</p>
-            <div className="mt-2 text-xs text-slate-500">
-              <span>Regulation: </span>
-              {f.regulation_doc_id ? (
-                <span className="font-medium text-sky-700">{f.regulation}</span>
-              ) : (
-                <span>{f.regulation}</span>
-              )}
-            </div>
-            {f.evidence_ref && (
-              <div className="mt-1 text-xs text-slate-500">
-                Evidence: <span className="font-mono">{f.evidence_ref}</span>
-                {f.evidence_date ? ` (${formatDate(f.evidence_date)})` : ""}
-                {f.due_date ? ` · next due ${formatDate(f.due_date)}` : ""}
+        {findings.map((f) => {
+          const s = complianceStatus(f.status);
+          return (
+            <Card key={f.rule_code} className="p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusPill token={s.token} label={s.label} />
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_TONE[f.category]}`}>{f.category}</span>
+                <h3 className="text-sm font-semibold">{f.title}</h3>
               </div>
-            )}
-            {f.gap && <p className="mt-1 text-xs font-medium text-red-600">{f.gap}</p>}
-          </div>
-        ))}
+              <p className="mt-2 text-sm text-ink">{f.requires}</p>
+              <p className="mt-2 text-xs text-muted">
+                Regulation: {f.regulation}
+                {f.evidence_ref ? <> · Evidence: <Tag>{f.evidence_ref}</Tag>{f.evidence_date ? ` (${formatDate(f.evidence_date)})` : ""}</> : null}
+                {f.due_date ? ` · next due ${formatDate(f.due_date)}` : ""}
+              </p>
+              {f.gap && <p className="mt-1 text-xs font-medium text-critical">{f.gap}</p>}
+            </Card>
+          );
+        })}
       </div>
-    </section>
+    </Section>
   );
 }
+
+// --- Tribal knowledge ---
 
 function TribalKnowledge({ notes }: { notes: GuruNote[] }) {
   if (notes.length === 0) return null;
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-        🧠 Tribal knowledge <span className="text-slate-300">({notes.length})</span>
-      </h2>
+    <Section title="Tribal knowledge" count={notes.length}>
       <div className="space-y-3">
         {notes.map((n) => (
-          <div key={n.note_id} className="rounded-xl border border-violet-200 bg-violet-50 p-4">
-            <div className="text-sm font-semibold text-violet-900">{n.engineer_name}</div>
-            <p className="mt-1 text-sm text-slate-700">{n.summary || n.symptom}</p>
-            {n.recommended_action && (
-              <p className="mt-1 text-xs text-slate-500">Action: {n.recommended_action}</p>
-            )}
-          </div>
+          <Card key={n.note_id} className="border-l-4 border-primary p-4">
+            <div className="text-sm font-semibold">{n.engineer_name}</div>
+            <p className="mt-1 text-sm text-ink">{n.summary || n.symptom}</p>
+            {n.recommended_action && <p className="mt-1 text-xs text-muted">Action: {n.recommended_action}</p>}
+          </Card>
         ))}
       </div>
-    </section>
+    </Section>
   );
 }
 
-const CHIP_TONES = {
-  plain: "bg-white border-slate-200 text-slate-900",
-  amber: "bg-amber-50 border-amber-200 text-amber-800",
-  red: "bg-red-50 border-red-200 text-red-800",
-} as const;
+// --- Timeline ---
 
-function Chip({ label, value, tone = "plain" }: { label: string; value: string | number; tone?: keyof typeof CHIP_TONES }) {
-  return (
-    <div className={`rounded-lg border p-3 ${CHIP_TONES[tone]}`}>
-      <div className="text-lg font-semibold">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-slate-400">{label}</div>
-    </div>
-  );
-}
-
-// Left-border colour tells the kind of event apart at a glance.
 function accentFor(item: TimelineItem): string {
-  if (item.kind === "incident") return "border-red-500 bg-red-50";
+  if (item.kind === "incident") return "border-critical bg-critical-soft";
   switch (item.extra.wo_type) {
     case "Corrective":
-      return "border-orange-400";
+      return "border-caution";
     case "Preventive":
-      return "border-emerald-400";
+      return "border-good";
     case "Inspection":
-      return "border-sky-400";
+      return "border-info";
     default:
-      return "border-slate-300";
+      return "border-line";
   }
 }
 
-function Timeline({ items }: { items: TimelineItem[] }) {
+function Timeline({ items, highlightWo }: { items: TimelineItem[]; highlightWo: string | null }) {
   return (
     <Section title="Timeline" count={items.length}>
       {items.length === 0 ? (
-        <Empty text="No work orders or incidents yet." />
+        <EmptyState title="No work orders or incidents yet." />
       ) : (
         <ol className="space-y-3">
           {items.map((item) => (
             <li
               key={`${item.kind}-${item.id}`}
-              className={`rounded-r-lg border-l-4 bg-white px-4 py-3 shadow-sm ${accentFor(item)}`}
+              className={`rounded-r-lg border-l-4 bg-surface px-4 py-3 shadow-[0_1px_2px_rgba(15,27,45,0.04)] ${accentFor(item)} ${item.id === highlightWo ? "animate-highlight" : ""}`}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-slate-500">{formatDate(item.date)}</span>
+                <span className="text-xs text-muted">{formatDate(item.date)}</span>
                 {item.kind === "incident" ? (
-                  <span className="rounded bg-red-600 px-1.5 py-0.5 text-xs font-semibold text-white">
-                    ⚠ NEAR-MISS
-                  </span>
+                  <StatusPill token="critical" label="Near-miss" />
                 ) : (
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
-                    {item.extra.wo_type ?? "Work order"}
-                  </span>
+                  <Chip>{item.extra.wo_type ?? "Work order"}</Chip>
                 )}
-                {item.status && item.status !== "Closed" && (
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
-                    {item.status}
-                  </span>
-                )}
-                <span className="font-mono text-xs text-slate-400">{item.id}</span>
+                {item.status && item.status !== "Closed" && <StatusPill token="caution" label={item.status} />}
+                <Tag className="text-xs text-muted">{item.id}</Tag>
               </div>
-              <p className="mt-1 text-sm text-slate-800">{item.description}</p>
+              <p className="mt-1 text-sm text-ink">{item.description}</p>
               {item.kind === "workorder" && (item.extra.technician || item.extra.parts_used) && (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted">
                   {item.extra.technician && <>Technician: {item.extra.technician}. </>}
                   {item.extra.parts_used && <>Parts: {item.extra.parts_used}.</>}
                 </p>
@@ -459,32 +373,31 @@ function Timeline({ items }: { items: TimelineItem[] }) {
   );
 }
 
-const DOC_GROUP_ORDER = ["Manual", "Governing regulation", "Referenced in"];
+// --- Documents ---
+
+const DOC_ORDER = ["Manual", "Governing regulation", "Referenced in"];
 
 function Documents({ documents }: { documents: DocumentLink[] }) {
-  // Group by the friendly label the backend already assigned.
   const groups = new Map<string, DocumentLink[]>();
   for (const d of documents) {
     const list = groups.get(d.label) ?? [];
     list.push(d);
     groups.set(d.label, list);
   }
-  const orderedLabels = [...groups.keys()].sort(
-    (a, b) => (DOC_GROUP_ORDER.indexOf(a) + 99) - (DOC_GROUP_ORDER.indexOf(b) + 99)
-  );
+  const labels = [...groups.keys()].sort((a, b) => (DOC_ORDER.indexOf(a) + 9) - (DOC_ORDER.indexOf(b) + 9));
 
   return (
     <Section title="Documents" count={documents.length}>
       {documents.length === 0 ? (
-        <Empty text="No linked documents." />
+        <EmptyState title="No linked documents." />
       ) : (
         <div className="space-y-4">
-          {orderedLabels.map((label) => (
+          {labels.map((label) => (
             <div key={label}>
-              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</h3>
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{label}</h3>
               <ul className="space-y-1">
                 {groups.get(label)!.map((d) => (
-                  <li key={`${d.relationship}-${d.doc_id}`} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <li key={`${d.relationship}-${d.doc_id}`} className="rounded-lg border border-line bg-surface px-3 py-2 text-sm">
                     {d.title ?? d.doc_id}
                   </li>
                 ))}
@@ -497,45 +410,19 @@ function Documents({ documents }: { documents: DocumentLink[] }) {
   );
 }
 
+// --- People ---
+
 function People({ people }: { people: PersonWork[] }) {
+  if (people.length === 0) return null;
   return (
     <Section title="People" count={people.length}>
-      {people.length === 0 ? (
-        <Empty text="No recorded technicians." />
-      ) : (
-        <ul className="flex flex-wrap gap-2">
-          {people.map((p) => (
-            <li key={p.name} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm">
-              {p.name} <span className="text-slate-400">· {p.jobs} job{p.jobs === 1 ? "" : "s"}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="flex flex-wrap gap-2">
+        {people.map((p) => (
+          <Chip key={p.name}>
+            {p.name} <span className="text-line">·</span> {p.jobs} job{p.jobs === 1 ? "" : "s"}
+          </Chip>
+        ))}
+      </ul>
     </Section>
-  );
-}
-
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-        {title} <span className="text-slate-300">({count})</span>
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return <p className="text-sm text-slate-400">{text}</p>;
-}
-
-function Notice({ title, body, tone = "plain" }: { title: string; body: string; tone?: "plain" | "error" }) {
-  const style = tone === "error" ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-700";
-  return (
-    <div className={`mt-6 rounded-lg border p-4 ${style}`}>
-      <div className="font-medium">{title}</div>
-      <div className="mt-1 text-sm text-slate-500">{body}</div>
-    </div>
   );
 }

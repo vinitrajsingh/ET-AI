@@ -1,65 +1,85 @@
-import Image from "next/image";
+"use client";
+
+// Role-aware landing. Rather than a generic home, each role sees the handful of
+// things their job actually starts with, as large, plainly labelled cards.
+
+import Link from "next/link";
+import {
+  Boxes,
+  ClipboardCheck,
+  FileText,
+  MessageSquareText,
+  Mic2,
+  ShieldCheck,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
+
+import { ROLE_LABEL, Role, useRole } from "@/components/RoleContext";
+import { Card } from "@/components/ui";
+
+interface Action {
+  href: string;
+  title: string;
+  desc: string;
+  icon: LucideIcon;
+}
+
+const ACTIONS: Record<Role, Action[]> = {
+  technician: [
+    { href: "/copilot", title: "Ask the copilot", desc: "Get a cited answer about any equipment or procedure.", icon: MessageSquareText },
+    { href: "/equipment", title: "Look up equipment", desc: "See an asset's full history, health, and known issues.", icon: Boxes },
+  ],
+  engineer: [
+    { href: "/equipment", title: "Equipment 360", desc: "Health, predictions, timeline, and documents per asset.", icon: Boxes },
+    { href: "/permits/new", title: "Raise a permit", desc: "Safety checks run before the permit is activated.", icon: ClipboardCheck },
+    { href: "/copilot", title: "Ask the copilot", desc: "Cited answers from the plant knowledge graph.", icon: MessageSquareText },
+  ],
+  hse: [
+    { href: "/compliance", title: "Compliance board", desc: "Regulatory status across the fleet, before an audit.", icon: ShieldCheck },
+    { href: "/permits", title: "Permits", desc: "Active permits and their acknowledged safety warnings.", icon: ClipboardCheck },
+    { href: "/audit", title: "Audit package", desc: "Assemble audit-ready evidence in seconds.", icon: FileText },
+  ],
+  admin: [
+    { href: "/ingest", title: "Ingest documents", desc: "Feed the knowledge graph from the document corpus.", icon: Upload },
+    { href: "/guru", title: "Guru knowledge", desc: "Capture and approve senior-engineer experience.", icon: Mic2 },
+    { href: "/equipment", title: "Equipment 360", desc: "Browse every asset's full profile.", icon: Boxes },
+  ],
+};
 
 export default function Home() {
+  const { role } = useRole();
+  const actions = ACTIONS[role];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-4xl">
+        <p className="text-sm font-medium text-muted">{ROLE_LABEL[role]}</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">What would you like to do?</h1>
+        <p className="mt-2 max-w-2xl text-muted">
+          SANJEEVANI keeps every drawing, work order, incident, and safety rule for Bharat Petrochem Unit-2 in one
+          place, and speaks up before problems happen.
+        </p>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {actions.map((a) => {
+            const Icon = a.icon;
+            return (
+              <Link key={a.href} href={a.href} className="animate-in">
+                <Card className="flex h-full items-start gap-4 p-5 transition-colors hover:border-primary">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-info-soft text-primary">
+                    <Icon size={22} />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold">{a.title}</h2>
+                    <p className="mt-1 text-sm text-muted">{a.desc}</p>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
