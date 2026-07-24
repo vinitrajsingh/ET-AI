@@ -2,7 +2,7 @@
 
 **ET AI Hackathon 2026 · Problem Statement 8**  
 **Team:** Vipers  
-**Repo:** [github.com/vinitrajsingh/ET-AI](https://github.com/vinitrajsingh/ET-AI)
+**Repo:** [github.com/vinitrajsingh/ET-AI](https://www.github.com/vinitrajsingh/ET-AI)
 
 > Every plant has the answers buried in its documents. SANJEEVANI is the brain that remembers everything, connects everything, and speaks up before disaster — even with the voice of engineers who retired years ago.
 
